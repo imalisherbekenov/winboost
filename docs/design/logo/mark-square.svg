@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40" role="img" aria-label="WinBoost">
+  <rect x="0.5" y="0.5" width="39" height="39" rx="6" fill="none" stroke="#292d30"/>
+  <g transform="translate(8,8)">
+    <path d="M4 7 L8.5 19 L12 4 L15.5 19 L20 7" fill="none" stroke="#ffffff"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
