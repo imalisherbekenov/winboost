@@ -16,7 +16,7 @@ if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
 Write-Host "[3/3] Building WinBoost.exe ..." -ForegroundColor Yellow
 pyinstaller --onefile --noconsole --name WinBoost `
     --add-data "modules;modules" `
-    --collect-all customtkinter `
+    --collect-all dearpygui `
     --hidden-import psutil `
     --hidden-import plistlib `
     --uac-admin `
