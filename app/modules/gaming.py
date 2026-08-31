@@ -3,7 +3,6 @@ WinBoost — Gaming Optimization Module
 CPU priority, mouse acceleration, Nagle, Game Mode, Game Bar.
 """
 import winreg
-import os
 from modules.registry import set_reg_value, set_multi_reg
 
 def optimize_cpu_priority(log_success, log_error, log_info, game_exe="game.exe"):
@@ -92,24 +91,60 @@ def enable_game_mode(log_success, log_error, log_info):
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
-TRACKED_KEYS = [
-    {"hive": winreg.HKEY_CURRENT_USER, "path": r"Control Panel\Mouse", "name": "MouseSpeed"},
-    {"hive": winreg.HKEY_CURRENT_USER, "path": r"Control Panel\Mouse", "name": "MouseThreshold1"},
-    {"hive": winreg.HKEY_CURRENT_USER, "path": r"Control Panel\Mouse", "name": "MouseThreshold2"},
-    {"hive": winreg.HKEY_CURRENT_USER, "path": r"SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR", "name": "AppCaptureEnabled"},
-    {"hive": winreg.HKEY_CURRENT_USER, "path": r"System\GameConfigStore", "name": "GameDVR_Enabled"},
-    {"hive": winreg.HKEY_CURRENT_USER, "path": r"Software\Microsoft\GameBar", "name": "AllowAutoGameMode"},
-]
-
 def get_category(log_success, log_error, log_info):
     return {
         "title": "🎮 Игры",
         "desc": "Общая оптимизация для игр, сеть и ввод",
-        "tracked_keys": TRACKED_KEYS,
         "actions": [
-            ("Отключить акселерацию мыши", "Точный ввод без ускорения", lambda: disable_mouse_acceleration(log_success, log_error, log_info), "🖱️", "yellow"),
-            ("Отключить Nagle", "Снижение сетевой задержки", lambda: optimize_nagle(log_success, log_error, log_info), "🌐", "yellow"),
-            ("Отключить Game Bar", "Xbox Game Bar и оверлей", lambda: disable_game_bar(log_success, log_error, log_info), "🎮", "yellow"),
-            ("Включить Game Mode", "Приоритет для игр", lambda: enable_game_mode(log_success, log_error, log_info), "🚀", "blue"),
+            {
+                "name": "Отключить акселерацию мыши",
+                "desc": "Точный ввод без ускорения",
+                "run": lambda: disable_mouse_acceleration(log_success, log_error, log_info),
+                "icon": "🖱️",
+                "risk": "yellow",
+                "irreversible": False,
+                "effects": {"registry": [
+                    {"hive": winreg.HKEY_CURRENT_USER, "path": r"Control Panel\Mouse", "name": name}
+                    for name in ("MouseSpeed", "MouseThreshold1", "MouseThreshold2")
+                ]},
+            },
+            {
+                "name": "Отключить Nagle",
+                "desc": "Снижение сетевой задержки",
+                "run": lambda: optimize_nagle(log_success, log_error, log_info),
+                "icon": "🌐",
+                "risk": "yellow",
+                "irreversible": False,
+                "effects": {"registry": [{
+                    "hive": winreg.HKEY_LOCAL_MACHINE,
+                    "path": r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces",
+                    "dynamic": "tcp_interfaces",
+                    "names": ["TcpAckFrequency", "TCPNoDelay"],
+                }]},
+            },
+            {
+                "name": "Отключить Game Bar",
+                "desc": "Xbox Game Bar и оверлей",
+                "run": lambda: disable_game_bar(log_success, log_error, log_info),
+                "icon": "🎮",
+                "risk": "yellow",
+                "irreversible": False,
+                "effects": {"registry": [
+                    {"hive": winreg.HKEY_CURRENT_USER, "path": r"SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR", "name": "AppCaptureEnabled"},
+                    {"hive": winreg.HKEY_CURRENT_USER, "path": r"System\GameConfigStore", "name": "GameDVR_Enabled"},
+                ]},
+            },
+            {
+                "name": "Включить Game Mode",
+                "desc": "Приоритет для игр",
+                "run": lambda: enable_game_mode(log_success, log_error, log_info),
+                "icon": "🚀",
+                "risk": "blue",
+                "irreversible": False,
+                "effects": {"registry": [
+                    {"hive": winreg.HKEY_CURRENT_USER, "path": r"Software\Microsoft\GameBar", "name": name}
+                    for name in ("AllowAutoGameMode", "AutoGameModeEnabled")
+                ]},
+            },
         ],
     }

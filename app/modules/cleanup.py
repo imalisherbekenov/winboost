@@ -9,6 +9,8 @@ import shutil
 import glob
 import ctypes
 
+from modules.winshell import run_cmd
+
 
 def _get_size(path: str) -> int:
     """Get total size of a file or directory in bytes."""
@@ -86,8 +88,11 @@ def flush_dns(log_success, log_error, log_info):
     """Flush DNS resolver cache."""
     log_info("Сброс DNS-кэша...")
     try:
-        subprocess.run(["ipconfig", "/flushdns"], capture_output=True, check=True)
-        log_success("DNS-кэш очищен.")
+        ok, _, error = run_cmd(["ipconfig", "/flushdns"])
+        if ok:
+            log_success("DNS-кэш очищен.")
+        else:
+            log_error(f"Ошибка: {error.strip()}")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -157,8 +162,8 @@ def clean_windows_update_cache(log_success, log_error, log_info):
     log_info("Очистка кэша Windows Update...")
     try:
         # Stop Windows Update service
-        subprocess.run(["net", "stop", "wuauserv"], capture_output=True, timeout=15)
-        subprocess.run(["net", "stop", "bits"], capture_output=True, timeout=15)
+        run_cmd(["net", "stop", "wuauserv"], timeout=15)
+        run_cmd(["net", "stop", "bits"], timeout=15)
 
         dl_path = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "SoftwareDistribution", "Download")
         total_bytes = 0
@@ -168,8 +173,8 @@ def clean_windows_update_cache(log_success, log_error, log_info):
             os.makedirs(dl_path, exist_ok=True)
 
         # Restart services
-        subprocess.run(["net", "start", "wuauserv"], capture_output=True, timeout=15)
-        subprocess.run(["net", "start", "bits"], capture_output=True, timeout=15)
+        run_cmd(["net", "start", "wuauserv"], timeout=15)
+        run_cmd(["net", "start", "bits"], timeout=15)
 
         log_success(f"Кэш Windows Update очищен ({_fmt_size(total_bytes)})")
     except Exception as e:
@@ -202,15 +207,14 @@ def get_category(log_success, log_error, log_info):
     return {
         "title": "🧹 Очистка",
         "desc": "TEMP, Prefetch, DNS, браузеры, корзина, Windows Update",
-        "tracked_keys": [],
         "actions": [
-            ("Очистить TEMP", "Удалить временные файлы", lambda: clean_temp(log_success, log_error, log_info), "🗑️", "blue"),
-            ("Очистить Prefetch", "Файлы предзагрузки", lambda: clean_prefetch(log_success, log_error, log_info), "📂", "blue"),
-            ("Сбросить DNS-кэш", "ipconfig /flushdns", lambda: flush_dns(log_success, log_error, log_info), "🌐", "blue"),
-            ("Кэш браузеров", "Chrome, Edge, Firefox, Opera", lambda: clean_browser_caches(log_success, log_error, log_info), "🌍", "blue"),
-            ("Очистить корзину", "Recycle Bin", lambda: empty_recycle_bin(log_success, log_error, log_info), "♻️", "blue"),
-            ("Кэш Windows Update", "SoftwareDistribution", lambda: clean_windows_update_cache(log_success, log_error, log_info), "📦", "yellow"),
-            ("Очистка диска", "cleanmgr", lambda: run_disk_cleanup(log_success, log_error, log_info), "💿", "blue"),
-            ("🧹 Полная очистка", "Всё вместе", lambda: full_cleanup(log_success, log_error, log_info), "🚀", "yellow"),
+            {"name": "Очистить TEMP", "desc": "Удалить временные файлы", "run": lambda: clean_temp(log_success, log_error, log_info), "icon": "🗑️", "risk": "blue", "irreversible": True, "effects": {}},
+            {"name": "Очистить Prefetch", "desc": "Файлы предзагрузки", "run": lambda: clean_prefetch(log_success, log_error, log_info), "icon": "📂", "risk": "blue", "irreversible": True, "effects": {}},
+            {"name": "Сбросить DNS-кэш", "desc": "ipconfig /flushdns", "run": lambda: flush_dns(log_success, log_error, log_info), "icon": "🌐", "risk": "blue", "irreversible": True, "effects": {}},
+            {"name": "Кэш браузеров", "desc": "Chrome, Edge, Firefox, Opera", "run": lambda: clean_browser_caches(log_success, log_error, log_info), "icon": "🌍", "risk": "blue", "irreversible": True, "effects": {}},
+            {"name": "Очистить корзину", "desc": "Recycle Bin", "run": lambda: empty_recycle_bin(log_success, log_error, log_info), "icon": "♻️", "risk": "blue", "irreversible": True, "effects": {}},
+            {"name": "Кэш Windows Update", "desc": "SoftwareDistribution", "run": lambda: clean_windows_update_cache(log_success, log_error, log_info), "icon": "📦", "risk": "yellow", "irreversible": True, "effects": {}},
+            {"name": "Очистка диска", "desc": "cleanmgr", "run": lambda: run_disk_cleanup(log_success, log_error, log_info), "icon": "💿", "risk": "blue", "irreversible": True, "effects": {}},
+            {"name": "🧹 Полная очистка", "desc": "Всё вместе", "run": lambda: full_cleanup(log_success, log_error, log_info), "icon": "🚀", "risk": "yellow", "irreversible": True, "effects": {}},
         ],
     }

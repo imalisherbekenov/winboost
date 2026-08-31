@@ -2,8 +2,9 @@
 WinBoost — Windows Debloater Module
 Remove pre-installed UWP apps (bloatware) using PowerShell.
 """
-import subprocess
 import logging
+
+from modules.winshell import run_ps
 
 logger = logging.getLogger("winboost")
 
@@ -32,12 +33,11 @@ def uninstall_uwp_app(app_name: str, package_name: str, log_success, log_error, 
     """Uninstall a specific UWP app via PowerShell."""
     log_info(f"Удаление {app_name}...")
     try:
-        cmd = f"Get-AppxPackage *{package_name}* | Remove-AppxPackage"
-        result = subprocess.run(["powershell", "-Command", cmd], capture_output=True, text=True)
-        if result.returncode == 0:
+        ok, _, error = run_ps(f"Get-AppxPackage *{package_name}* | Remove-AppxPackage")
+        if ok:
             log_success(f"Приложение {app_name} удалено.")
         else:
-            log_error(f"Ошибка удаления {app_name}: {result.stderr.strip()}")
+            log_error(f"Ошибка удаления {app_name}: {error.strip()}")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -51,25 +51,28 @@ def uninstall_all_bloat(log_success, log_error, log_info):
 def get_category(log_success, log_error, log_info):
     actions = []
     for name, package in BLOATWARE_APPS:
-        actions.append((
-            f"Удалить {name}",
-            f"Полное удаление пакета {package}",
-            lambda n=name, p=package: uninstall_uwp_app(n, p, log_success, log_error, log_info),
-            "🗑️",
-            "yellow"
-        ))
+        actions.append({
+            "name": f"Удалить {name}",
+            "desc": f"Полное удаление пакета {package}",
+            "run": lambda n=name, p=package: uninstall_uwp_app(n, p, log_success, log_error, log_info),
+            "icon": "🗑️",
+            "risk": "yellow",
+            "irreversible": True,
+            "effects": {"appx": [package]},
+        })
     
-    actions.append((
-        "🗑️ Удалить ВЕСЬ блоатвар",
-        "Массовое удаление всех перечисленных приложений",
-        lambda: uninstall_all_bloat(log_success, log_error, log_info),
-        "🚀",
-        "red"
-    ))
+    actions.append({
+        "name": "🗑️ Удалить ВЕСЬ блоатвар",
+        "desc": "Массовое удаление всех перечисленных приложений",
+        "run": lambda: uninstall_all_bloat(log_success, log_error, log_info),
+        "icon": "🚀",
+        "risk": "red",
+        "irreversible": True,
+        "effects": {"appx": [package for _, package in BLOATWARE_APPS]},
+    })
 
     return {
         "title": "📦 Деблоатер (Приложения)",
         "desc": "Удаление встроенных приложений Windows",
-        "tracked_keys": [], # UWP removal isn't easily reversible via registry
         "actions": actions
     }

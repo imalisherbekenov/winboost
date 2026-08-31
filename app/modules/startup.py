@@ -3,8 +3,10 @@ WinBoost — Startup Manager Module
 Scan, list, and disable unnecessary startup programs.
 """
 import winreg
-import subprocess
-import os
+import base64
+import json
+
+from modules.winshell import run_cmd
 
 # Registry locations where startup items live
 STARTUP_LOCATIONS = [
@@ -14,11 +16,11 @@ STARTUP_LOCATIONS = [
     (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce", "HKLM RunOnce"),
 ]
 
-# Known safe-to-disable startup items (case-insensitive partial match)
+# Known safe-to-disable startup item names (case-insensitive exact match)
 SAFE_TO_DISABLE = [
     "onedrive", "skype", "spotify", "discord", "steam", "epicgames",
     "teams", "zoom", "adobe", "creative cloud", "ccleaner", "itunes",
-    "helperservice", "updater", "update", "helper", "tray",
+    "helperservice",
     "googleupdate", "microsoftedge", "msedge",
 ]
 
@@ -28,6 +30,30 @@ NEVER_DISABLE = [
     "realtek", "nvidia", "amd", "intel", "ctfmon", "explorer",
     "igfx", "rthdvcpl",
 ]
+
+DISABLED_STARTUP_PATH = r"Software\WinBoost\DisabledStartup"
+_SAFE_NAMES = frozenset(name.casefold() for name in SAFE_TO_DISABLE)
+_NEVER_MARKERS = tuple(name.casefold() for name in NEVER_DISABLE)
+
+
+def _classification(name: str) -> tuple[bool, bool]:
+    normalized = name.casefold()
+    entry_name = normalized.rsplit("\\", 1)[-1]
+    critical = any(marker in normalized for marker in _NEVER_MARKERS)
+    return entry_name in _SAFE_NAMES and not critical, critical
+
+
+def _json_registry_value(value):
+    if isinstance(value, bytes):
+        return base64.b64encode(value).decode("ascii"), "base64"
+    return value, None
+
+
+def _stored_registry_value(data: dict):
+    value = data["value"]
+    if data.get("value_encoding") == "base64":
+        return base64.b64decode(value)
+    return value
 
 
 def scan_startup_items() -> list[dict]:
@@ -40,8 +66,7 @@ def scan_startup_items() -> list[dict]:
             while True:
                 try:
                     name, value, _ = winreg.EnumValue(key, i)
-                    is_safe = any(s in name.lower() or s in str(value).lower() for s in SAFE_TO_DISABLE)
-                    is_critical = any(s in name.lower() or s in str(value).lower() for s in NEVER_DISABLE)
+                    is_safe, is_critical = _classification(name)
                     items.append({
                         "name": name,
                         "value": str(value),
@@ -60,23 +85,21 @@ def scan_startup_items() -> list[dict]:
 
     # Also scan Task Scheduler for common bloat
     try:
-        r = subprocess.run(
-            ["schtasks", "/query", "/fo", "CSV", "/nh"],
-            capture_output=True, text=True, timeout=15
-        )
-        for line in r.stdout.strip().split("\n"):
+        ok, stdout, _ = run_cmd(["schtasks", "/query", "/fo", "CSV", "/nh"], timeout=15)
+        for line in stdout.strip().splitlines() if ok else []:
             parts = line.strip().strip('"').split('","')
             if len(parts) >= 2:
                 task_name = parts[0].strip('"')
-                if any(s in task_name.lower() for s in SAFE_TO_DISABLE):
+                is_safe, is_critical = _classification(task_name)
+                if is_safe or is_critical:
                     items.append({
                         "name": task_name,
                         "value": "Scheduled Task",
                         "location": "Task Scheduler",
                         "hive": None,
                         "path": None,
-                        "safe_to_disable": True,
-                        "critical": False,
+                        "safe_to_disable": is_safe,
+                        "critical": is_critical,
                     })
     except Exception:
         pass
@@ -94,11 +117,11 @@ def disable_startup_item(item: dict, log_success, log_error, log_info):
 
     if item["location"] == "Task Scheduler":
         try:
-            subprocess.run(
-                ["schtasks", "/Change", "/TN", name, "/DISABLE"],
-                capture_output=True, timeout=10
-            )
-            log_success(f"Задача отключена: {name}")
+            ok, _, error = run_cmd(["schtasks", "/Change", "/TN", name, "/DISABLE"], timeout=10)
+            if ok:
+                log_success(f"Задача отключена: {name}")
+            else:
+                log_error(f"Ошибка отключения {name}: {error.strip()}")
         except Exception as e:
             log_error(f"Ошибка: {e}")
         return
@@ -106,12 +129,42 @@ def disable_startup_item(item: dict, log_success, log_error, log_info):
     try:
         hive = item["hive"]
         path = item["path"]
-        key = winreg.OpenKeyEx(hive, path, 0, winreg.KEY_SET_VALUE)
-        winreg.DeleteValue(key, name)
-        winreg.CloseKey(key)
+        with winreg.OpenKeyEx(hive, path, 0, winreg.KEY_QUERY_VALUE | winreg.KEY_SET_VALUE) as key:
+            value, value_type = winreg.QueryValueEx(key, name)
+            stored_value, encoding = _json_registry_value(value)
+            backup = {
+                "name": name,
+                "value": stored_value,
+                "type": value_type,
+                "hive": int(hive),
+                "path": path,
+            }
+            if encoding:
+                backup["value_encoding"] = encoding
+            with winreg.CreateKeyEx(
+                winreg.HKEY_CURRENT_USER, DISABLED_STARTUP_PATH, 0, winreg.KEY_SET_VALUE
+            ) as backup_key:
+                winreg.SetValueEx(backup_key, name, 0, winreg.REG_SZ, json.dumps(backup, ensure_ascii=False))
+            winreg.DeleteValue(key, name)
         log_success(f"Удалён из автозагрузки: {name}")
     except Exception as e:
         log_error(f"Ошибка удаления {name}: {e}")
+
+
+def restore_startup_item(name, log_success, log_error, log_info):
+    """Restore a registry startup item saved by :func:`disable_startup_item`."""
+    log_info(f"Восстановление элемента автозагрузки: {name}...")
+    try:
+        with winreg.OpenKeyEx(
+            winreg.HKEY_CURRENT_USER, DISABLED_STARTUP_PATH, 0, winreg.KEY_QUERY_VALUE
+        ) as backup_key:
+            raw, _ = winreg.QueryValueEx(backup_key, name)
+        data = json.loads(raw)
+        with winreg.CreateKeyEx(int(data["hive"]), data["path"], 0, winreg.KEY_SET_VALUE) as key:
+            winreg.SetValueEx(key, data["name"], 0, int(data["type"]), _stored_registry_value(data))
+        log_success(f"Восстановлен в автозагрузке: {name}")
+    except Exception as e:
+        log_error(f"Ошибка восстановления {name}: {e}")
 
 
 def disable_all_safe(log_success, log_error, log_info):
@@ -151,9 +204,19 @@ def get_category(log_success, log_error, log_info):
     return {
         "title": "🚀 Автозагрузка",
         "desc": "Сканирование и отключение лишних программ",
-        "tracked_keys": [],
         "actions": [
-            ("Отчёт автозагрузки", "Сканирование без изменений", lambda: get_startup_report(log_success, log_error, log_info), "📊", "blue"),
-            ("Отключить безопасные", "Удалить неважные из автозагрузки", lambda: disable_all_safe(log_success, log_error, log_info), "🧹", "yellow"),
+            {"name": "Отчёт автозагрузки", "desc": "Сканирование без изменений", "run": lambda: get_startup_report(log_success, log_error, log_info), "icon": "📊", "risk": "blue", "irreversible": False, "effects": {}},
+            {
+                "name": "Отключить безопасные",
+                "desc": "Удалить неважные из автозагрузки",
+                "run": lambda: disable_all_safe(log_success, log_error, log_info),
+                "icon": "🧹",
+                "risk": "yellow",
+                "irreversible": False,
+                "effects": {"registry": [
+                    {"hive": hive, "path": path, "dynamic": "registry_values"}
+                    for hive, path, _ in STARTUP_LOCATIONS
+                ]},
+            },
         ],
     }

@@ -3,8 +3,19 @@ WinBoost — Updates & Tasks Optimizer
 Control Windows Updates and Telemetry Scheduled Tasks.
 """
 import winreg
-import subprocess
 from modules.registry import set_reg_value
+from modules.winshell import run_cmd
+
+
+TELEMETRY_TASKS = [
+    r"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
+    r"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
+    r"\Microsoft\Windows\Application Experience\StartupAppTask",
+    r"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
+    r"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
+    r"\Microsoft\Windows\Autochk\Proxy",
+    r"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
+]
 
 def disable_auto_drivers(log_success, log_error, log_info):
     """Disable automatic driver updates via Windows Update."""
@@ -27,24 +38,11 @@ def disable_auto_drivers(log_success, log_error, log_info):
 def disable_telemetry_tasks(log_success, log_error, log_info):
     """Disable hidden telemetry and diagnostic tasks in Task Scheduler."""
     log_info("Отключение телеметрических задач...")
-    tasks = [
-        r"\Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser",
-        r"\Microsoft\Windows\Application Experience\ProgramDataUpdater",
-        r"\Microsoft\Windows\Application Experience\StartupAppTask",
-        r"\Microsoft\Windows\Customer Experience Improvement Program\Consolidator",
-        r"\Microsoft\Windows\Customer Experience Improvement Program\UsbCeip",
-        r"\Microsoft\Windows\Autochk\Proxy",
-        r"\Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector",
-    ]
-    
     count = 0
-    for task in tasks:
-        try:
-            res = subprocess.run(["schtasks", "/Change", "/TN", task, "/DISABLE"], capture_output=True, text=True)
-            if res.returncode == 0:
-                count += 1
-        except Exception:
-            pass
+    for task in TELEMETRY_TASKS:
+        ok, _, _ = run_cmd(["schtasks", "/Change", "/TN", task, "/DISABLE"])
+        if ok:
+            count += 1
     
     log_success(f"Отключено {count} задач телеметрии.")
 
@@ -63,13 +61,20 @@ def get_category(log_success, log_error, log_info):
     return {
         "title": "🔄 Обновления и Задачи",
         "desc": "Контроль обновлений и фоновых задач",
-        "tracked_keys": [
-            {"hive": winreg.HKEY_LOCAL_MACHINE, "path": r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate", "name": "ExcludeWUDriversInQualityUpdate"},
-            {"hive": winreg.HKEY_LOCAL_MACHINE, "path": r"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching", "name": "SearchOrderConfig"},
-        ],
         "actions": [
-            ("Отключить авто-драйверы", "Не обновлять драйверы через WU", lambda: disable_auto_drivers(log_success, log_error, log_info), "💿", "yellow"),
-            ("Отключить задачи телеметрии", "Задачи Application Experience и CEIP", lambda: disable_telemetry_tasks(log_success, log_error, log_info), "📊", "red"),
-            ("Пауза обновлений", "Приостановить до 2099 года", lambda: pause_updates(log_success, log_error, log_info), "⏸️", "yellow"),
+            {
+                "name": "Отключить авто-драйверы",
+                "desc": "Не обновлять драйверы через WU",
+                "run": lambda: disable_auto_drivers(log_success, log_error, log_info),
+                "icon": "💿",
+                "risk": "yellow",
+                "irreversible": False,
+                "effects": {"registry": [
+                    {"hive": winreg.HKEY_LOCAL_MACHINE, "path": r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate", "name": "ExcludeWUDriversInQualityUpdate"},
+                    {"hive": winreg.HKEY_LOCAL_MACHINE, "path": r"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching", "name": "SearchOrderConfig"},
+                ]},
+            },
+            {"name": "Отключить задачи телеметрии", "desc": "Задачи Application Experience и CEIP", "run": lambda: disable_telemetry_tasks(log_success, log_error, log_info), "icon": "📊", "risk": "red", "irreversible": False, "effects": {"tasks": TELEMETRY_TASKS}},
+            {"name": "Пауза обновлений", "desc": "Приостановить до 2099 года", "run": lambda: pause_updates(log_success, log_error, log_info), "icon": "⏸️", "risk": "yellow", "irreversible": False, "effects": {"registry": [{"hive": winreg.HKEY_LOCAL_MACHINE, "path": r"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings", "name": "PauseUpdatesExpiryTime"}]}},
         ]
     }

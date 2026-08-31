@@ -1,11 +1,16 @@
 import winreg
 import os
+import shutil
 
 def optimize_cs2(log_success, log_error, log_info):
     log_info("Применение CS2 Оптимизаций (Autoexec + Binds)...")
     try:
         cs2_cfg_path = r"C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\cfg\autoexec.cfg"
         os.makedirs(os.path.dirname(cs2_cfg_path), exist_ok=True)
+        if os.path.isfile(cs2_cfg_path):
+            backup_path = os.path.join(os.path.dirname(cs2_cfg_path), "autoexec.winboost-backup.cfg")
+            shutil.copy2(cs2_cfg_path, backup_path)
+            log_info(f"Существующий autoexec.cfg сохранён: {backup_path}")
         
         cs2_config = """// ==========================================
 // CS2 Optimized Config by WinBoost
@@ -68,13 +73,17 @@ def get_category(log_success, log_error, log_info):
     return {
         'title': '🎮 CS2 Оптимизация',
         'desc': 'Киберспортивный конфиг и высокий приоритет',
-        'actions': [
-            (
-                'Оптимизировать CS2 (Autoexec + Binds)', 
-                'Создает киберспортивный autoexec.cfg и ставит высокий приоритет', 
-                lambda: optimize_cs2(log_success, log_error, log_info), 
-                '🔫', 
-                'Игры'
-            )
-        ]
+        'actions': [{
+            'name': 'Оптимизировать CS2 (Autoexec + Binds)',
+            'desc': 'Создает киберспортивный autoexec.cfg и ставит высокий приоритет',
+            'run': lambda: optimize_cs2(log_success, log_error, log_info),
+            'icon': '🔫',
+            'risk': 'yellow',
+            'irreversible': True,
+            'effects': {'registry': [{
+                'hive': winreg.HKEY_LOCAL_MACHINE,
+                'path': r'SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\cs2.exe\PerfOptions',
+                'name': 'CpuPriorityClass',
+            }]},
+        }]
     }

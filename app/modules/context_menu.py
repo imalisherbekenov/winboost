@@ -4,7 +4,7 @@ Enable/Disable third-party context menu entries.
 """
 import winreg
 import logging
-from modules.registry import open_reg_key
+from modules.winshell import run_ps
 
 logger = logging.getLogger("winboost")
 
@@ -60,8 +60,11 @@ def toggle_context_item(item_path: str, hive: int, name: str, enable: bool, log_
         # For simplicity in this script, we use a PowerShell command to rename the key
         hive_name = "HKCR" # In this context it's HKCR
         ps_cmd = f"Rename-Item -Path 'Registry::{hive_name}\\{parent_path}\\{old_name}' -NewName '{new_name}'"
-        subprocess.run(["powershell", "-Command", ps_cmd], capture_output=True)
-        log_success(f"Элемент {'включен' if enable else 'выключен'}: {new_name}")
+        ok, _, error = run_ps(ps_cmd)
+        if ok:
+            log_success(f"Элемент {'включен' if enable else 'выключен'}: {new_name}")
+        else:
+            log_error(f"Ошибка переименования: {error.strip()}")
     except Exception as e:
         log_error(f"Ошибка переименования: {e}")
 
@@ -78,8 +81,7 @@ def get_category(log_success, log_error, log_info):
     return {
         "title": "🖱️ Контекстное меню",
         "desc": "Управление пунктами правой кнопки мыши",
-        "tracked_keys": [],
         "actions": [
-            ("Оптимизировать меню", "Отключить медленные расширения", lambda: cleanup_shell_extensions(log_success, log_error, log_info), "🖱️", "blue"),
+            {"name": "Оптимизировать меню", "desc": "Отключить медленные расширения", "run": lambda: cleanup_shell_extensions(log_success, log_error, log_info), "icon": "🖱️", "risk": "blue", "irreversible": False, "effects": {}},
         ]
     }
