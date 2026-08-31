@@ -1,0 +1,4 @@
+PySide6>=6.5.0
+qt-material>=3.0.1
+psutil>=5.9.0
+customtkinter>=5.2.0

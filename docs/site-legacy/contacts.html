@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Контакты — WinBoost</title>
+  <meta name="description" content="Свяжитесь с командой WinBoost — обратная связь, поддержка, предложения.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .legal-page { min-height: 100vh; padding: 120px 0 60px; }
+    .legal-page h1 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; }
+    .legal-page .subtitle { color: var(--text-dim); margin-bottom: 40px; font-size: 0.9rem; }
+    .legal-page h2 { font-size: 1.2rem; font-weight: 700; color: var(--accent); margin: 32px 0 12px; }
+    .legal-page p { color: var(--text-dim); font-size: 0.95rem; line-height: 1.8; margin-bottom: 12px; }
+    .back-link { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); text-decoration: none; font-weight: 600; margin-bottom: 32px; transition: opacity 0.2s; }
+    .back-link:hover { opacity: 0.7; }
+    .contact-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 36px; }
+    .contact-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 32px; text-align: center;
+      transition: all 0.3s;
+    }
+    .contact-card:hover { border-color: rgba(0,229,255,0.2); transform: translateY(-4px); }
+    .contact-card .icon { font-size: 2rem; margin-bottom: 16px; }
+    .contact-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+    .contact-card p { color: var(--text-dim); font-size: 0.9rem; margin: 0; }
+    .contact-card a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    .contact-card a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<nav class="nav scrolled">
+  <div class="container nav-inner">
+    <a href="index.html" class="nav-logo">
+      <div class="nav-logo-icon">W</div>
+      <div class="nav-logo-text">Win<span>Boost</span></div>
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html">← На главную</a></li>
+    </ul>
+  </div>
+</nav>
+
+<section class="legal-page">
+  <div class="container" style="max-width: 800px;">
+    <a href="index.html" class="back-link">← Вернуться на главную</a>
+    <h1>📬 Контакты</h1>
+    <p class="subtitle">Мы открыты к обратной связи и предложениям</p>
+
+    <div class="contact-cards">
+      <div class="contact-card">
+        <div class="icon">💬</div>
+        <h3>Telegram</h3>
+        <p>Быстрый способ связаться</p>
+        <p style="margin-top:12px;"><a href="https://t.me/hageshii_kaze" target="_blank">@hageshii_kaze</a></p>
+      </div>
+      <div class="contact-card">
+        <div class="icon">📧</div>
+        <h3>Email</h3>
+        <p>Для деловых вопросов</p>
+        <p style="margin-top:12px;"><a href="mailto:wannabemugetsu@gmail.com">wannabemugetsu@gmail.com</a></p>
+      </div>
+      <div class="contact-card">
+        <div class="icon">🐙</div>
+        <h3>GitHub</h3>
+        <p>Баг-репорты и предложения</p>
+        <p style="margin-top:12px;"><a href="https://github.com/imalisherbekenov" target="_blank">imalisherbekenov</a></p>
+      </div>
+    </div>
+
+    <h2 style="margin-top:48px;">Часто спрашивают</h2>
+    <p><strong>Нашли баг?</strong> — Создайте Issue на GitHub или напишите в Telegram.</p>
+    <p><strong>Хотите предложить фичу?</strong> — Мы открыты к идеям! Напишите нам любым удобным способом.</p>
+    <p><strong>Коммерческое сотрудничество?</strong> — Напишите на email, мы ответим в течение 48 часов.</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h2 class="glow-text">WinBoost</h2>
+        <p>Современный, безопасный и прозрачный инструмент для оптимизации вашей системы. Настройте Windows под свои нужды за пару минут.</p>
+      </div>
+      <div class="footer-links">
+        <h4>Юридическая инфа</h4>
+        <ul>
+          <li><a href="privacy.html">Политика конфиденциальности</a></li>
+          <li><a href="terms.html">Пользовательское соглашение</a></li>
+        </ul>
+      </div>
+      <div class="footer-links">
+        <h4>Связь</h4>
+        <ul>
+          <li><a href="contacts.html">Контакты</a></li>
+          <li><a href="https://github.com/imalisherbekenov" target="_blank">GitHub</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © 2024–2026 WinBoost. Все права защищены.
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

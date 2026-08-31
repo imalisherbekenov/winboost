@@ -216,3 +216,21 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- WinBoost ---
+*.exe
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+node_modules/
+.next/
+out/
+.vercel
+*.tsbuildinfo
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.omc/
