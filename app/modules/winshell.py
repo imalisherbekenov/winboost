@@ -18,6 +18,10 @@ def _failure(exc: Exception) -> tuple[bool, str, str]:
 
 def run_ps(script: str, timeout: int = 20) -> tuple[bool, str, str]:
     """Run PowerShell. Returns ``(ok, stdout, stderr)``."""
+    utf8_script = (
+        "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
+        f"{script}"
+    )
     args = [
         "powershell",
         "-NoProfile",
@@ -25,7 +29,7 @@ def run_ps(script: str, timeout: int = 20) -> tuple[bool, str, str]:
         "-ExecutionPolicy",
         "Bypass",
         "-Command",
-        script,
+        utf8_script,
     ]
     try:
         result = subprocess.run(
@@ -34,6 +38,7 @@ def run_ps(script: str, timeout: int = 20) -> tuple[bool, str, str]:
             capture_output=True,
             text=True,
             encoding="utf-8",
+            errors="replace",
             timeout=timeout,
         )
     except (OSError, subprocess.SubprocessError) as exc:
@@ -67,7 +72,8 @@ def run_cmd(args: Sequence[str], timeout: int = 20) -> tuple[bool, str, str]:
             creationflags=CREATE_NO_WINDOW,
             capture_output=True,
             text=True,
-            encoding="utf-8",
+            encoding="oem",
+            errors="replace",
             timeout=timeout,
         )
     except (OSError, subprocess.SubprocessError) as exc:

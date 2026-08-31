@@ -3,13 +3,12 @@ WinBoost — Cleanup Module (Enhanced)
 Temp files, Prefetch, DNS cache, Browser caches, Recycle Bin, Windows Update cache.
 Tracks freed disk space for each operation.
 """
-import subprocess
 import os
 import shutil
 import glob
 import ctypes
 
-from modules.winshell import run_cmd
+from modules.winshell import run_cmd, run_ps
 
 
 def _get_size(path: str) -> int:
@@ -49,6 +48,7 @@ def clean_temp(log_success, log_error, log_info):
     ]
     total_files = 0
     total_bytes = 0
+    failed = 0
     for d in dirs:
         if not d or not os.path.isdir(d):
             continue
@@ -59,12 +59,18 @@ def clean_temp(log_success, log_error, log_info):
                 if os.path.isfile(path):
                     os.remove(path)
                 elif os.path.isdir(path):
-                    shutil.rmtree(path, ignore_errors=True)
-                total_files += 1
-                total_bytes += size
+                    shutil.rmtree(path)
+                if not os.path.exists(path):
+                    total_files += 1
+                    total_bytes += size
             except Exception:
-                pass
-    log_success(f"Удалено: {total_files} элементов ({_fmt_size(total_bytes)})")
+                failed += 1
+    if total_files:
+        log_success(f"Удалено: {total_files} элементов ({_fmt_size(total_bytes)})")
+    else:
+        log_info("Временные файлы для удаления не найдены.")
+    if failed:
+        log_error(f"Не удалось удалить временных элементов: {failed}.")
 
 
 def clean_prefetch(log_success, log_error, log_info):
@@ -73,6 +79,7 @@ def clean_prefetch(log_success, log_error, log_info):
     pf = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Prefetch")
     count = 0
     total_bytes = 0
+    failed = 0
     if os.path.isdir(pf):
         for f in glob.glob(os.path.join(pf, "*.pf")):
             try:
@@ -80,19 +87,25 @@ def clean_prefetch(log_success, log_error, log_info):
                 os.remove(f)
                 count += 1
             except Exception:
-                pass
-    log_success(f"Prefetch: удалено {count} файлов ({_fmt_size(total_bytes)})")
+                failed += 1
+    if count:
+        log_success(f"Prefetch: удалено {count} файлов ({_fmt_size(total_bytes)})")
+    else:
+        log_info("Файлы Prefetch для удаления не найдены.")
+    if failed:
+        log_error(f"Не удалось удалить файлов Prefetch: {failed}.")
 
 
 def flush_dns(log_success, log_error, log_info):
     """Flush DNS resolver cache."""
     log_info("Сброс DNS-кэша...")
     try:
-        ok, _, error = run_cmd(["ipconfig", "/flushdns"])
+        ok, stdout, error = run_cmd(["ipconfig", "/flushdns"])
         if ok:
             log_success("DNS-кэш очищен.")
         else:
-            log_error(f"Ошибка: {error.strip()}")
+            reason = (error or stdout).strip() or "ipconfig завершился без описания ошибки"
+            log_error(f"Ошибка: {reason}")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -119,6 +132,7 @@ def clean_browser_caches(log_success, log_error, log_info):
 
     total_bytes = 0
     total_items = 0
+    failed = 0
 
     for cache_dir in cache_paths:
         if not os.path.isdir(cache_dir):
@@ -130,20 +144,28 @@ def clean_browser_caches(log_success, log_error, log_info):
                 ff_cache = os.path.join(cache_dir, profile, "cache2")
                 if os.path.isdir(ff_cache):
                     size = _get_size(ff_cache)
-                    shutil.rmtree(ff_cache, ignore_errors=True)
-                    total_bytes += size
-                    total_items += 1
+                    try:
+                        shutil.rmtree(ff_cache)
+                        total_bytes += size
+                        total_items += 1
+                    except OSError:
+                        failed += 1
             continue
 
         size = _get_size(cache_dir)
         try:
-            shutil.rmtree(cache_dir, ignore_errors=True)
+            shutil.rmtree(cache_dir)
             total_bytes += size
             total_items += 1
         except Exception:
-            pass
+            failed += 1
 
-    log_success(f"Кэш браузеров: очищено {total_items} директорий ({_fmt_size(total_bytes)})")
+    if total_items:
+        log_success(f"Кэш браузеров: очищено {total_items} директорий ({_fmt_size(total_bytes)})")
+    else:
+        log_info("Кэши браузеров для очистки не найдены.")
+    if failed:
+        log_error(f"Не удалось очистить директорий кэша: {failed}.")
 
 
 def empty_recycle_bin(log_success, log_error, log_info):
@@ -151,8 +173,11 @@ def empty_recycle_bin(log_success, log_error, log_info):
     log_info("Очистка корзины...")
     try:
         # SHEmptyRecycleBin flags: SHERB_NOCONFIRMATION=1, SHERB_NOPROGRESSUI=2, SHERB_NOSOUND=4
-        ctypes.windll.shell32.SHEmptyRecycleBinW(None, None, 0x0007)
-        log_success("Корзина очищена.")
+        result = ctypes.windll.shell32.SHEmptyRecycleBinW(None, None, 0x0007)
+        if result == 0:
+            log_success("Корзина очищена.")
+        else:
+            log_error(f"Не удалось очистить корзину: код Windows 0x{result & 0xFFFFFFFF:08X}.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -160,33 +185,51 @@ def empty_recycle_bin(log_success, log_error, log_info):
 def clean_windows_update_cache(log_success, log_error, log_info):
     """Clean Windows Update download cache (SoftwareDistribution)."""
     log_info("Очистка кэша Windows Update...")
+    commands_ok = True
+    cache_cleared = False
+    total_bytes = 0
     try:
-        # Stop Windows Update service
-        run_cmd(["net", "stop", "wuauserv"], timeout=15)
-        run_cmd(["net", "stop", "bits"], timeout=15)
+        for service in ("wuauserv", "bits"):
+            ok, stdout, error = run_cmd(["net", "stop", service], timeout=15)
+            if not ok:
+                commands_ok = False
+                log_error(f"Не удалось остановить {service}: {(error or stdout).strip() or 'нет описания'}")
 
         dl_path = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "SoftwareDistribution", "Download")
-        total_bytes = 0
         if os.path.isdir(dl_path):
             total_bytes = _get_size(dl_path)
-            shutil.rmtree(dl_path, ignore_errors=True)
+            shutil.rmtree(dl_path)
             os.makedirs(dl_path, exist_ok=True)
-
-        # Restart services
-        run_cmd(["net", "start", "wuauserv"], timeout=15)
-        run_cmd(["net", "start", "bits"], timeout=15)
-
-        log_success(f"Кэш Windows Update очищен ({_fmt_size(total_bytes)})")
+            cache_cleared = True
     except Exception as e:
-        log_error(f"Ошибка: {e}")
+        log_error(f"Ошибка очистки кэша Windows Update: {e}")
+    finally:
+        for service in ("wuauserv", "bits"):
+            ok, stdout, error = run_cmd(["net", "start", service], timeout=15)
+            if not ok:
+                commands_ok = False
+                log_error(f"Не удалось запустить {service}: {(error or stdout).strip() or 'нет описания'}")
+
+    if cache_cleared and commands_ok:
+        log_success(f"Кэш Windows Update очищен ({_fmt_size(total_bytes)})")
+    elif not cache_cleared:
+        log_info("Кэш Windows Update не был очищен: он отсутствует или недоступен.")
 
 
 def run_disk_cleanup(log_success, log_error, log_info):
     """Run Windows Disk Cleanup utility."""
     log_info("Запуск очистки диска (cleanmgr)...")
     try:
-        subprocess.Popen(["cleanmgr", "/d", "C"], creationflags=0x00000010)
-        log_success("cleanmgr запущен.")
+        ok, stdout, error = run_ps(
+            "$command = Get-Command cleanmgr.exe -ErrorAction Stop; "
+            "$process = Start-Process -FilePath $command.Source -ArgumentList '/d','C' "
+            "-PassThru -ErrorAction Stop; $process.Id",
+            timeout=10,
+        )
+        if ok and stdout.strip().splitlines()[-1].strip().isdigit():
+            log_success("cleanmgr запущен.")
+        else:
+            log_error(f"Не удалось запустить cleanmgr: {(error or stdout).strip() or 'нет описания'}")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -200,7 +243,7 @@ def full_cleanup(log_success, log_error, log_info):
     clean_browser_caches(log_success, log_error, log_info)
     empty_recycle_bin(log_success, log_error, log_info)
     clean_windows_update_cache(log_success, log_error, log_info)
-    log_success("✅ Полная очистка завершена!")
+    log_info("Полная очистка завершена; результаты каждой операции указаны выше.")
 
 
 def get_category(log_success, log_error, log_info):

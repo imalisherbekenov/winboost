@@ -111,20 +111,22 @@ def disable_startup_item(item: dict, log_success, log_error, log_info):
     """Disable a specific startup entry."""
     if item["critical"]:
         log_error(f"⛔ Нельзя отключить системный элемент: {item['name']}")
-        return
+        return False
 
     name = item["name"]
 
     if item["location"] == "Task Scheduler":
         try:
-            ok, _, error = run_cmd(["schtasks", "/Change", "/TN", name, "/DISABLE"], timeout=10)
+            ok, stdout, error = run_cmd(["schtasks", "/Change", "/TN", name, "/DISABLE"], timeout=10)
             if ok:
                 log_success(f"Задача отключена: {name}")
+                return True
             else:
-                log_error(f"Ошибка отключения {name}: {error.strip()}")
+                reason = (error or stdout).strip() or "команда завершилась без описания"
+                log_error(f"Ошибка отключения {name}: {reason}")
         except Exception as e:
             log_error(f"Ошибка: {e}")
-        return
+        return False
 
     try:
         hive = item["hive"]
@@ -147,8 +149,10 @@ def disable_startup_item(item: dict, log_success, log_error, log_info):
                 winreg.SetValueEx(backup_key, name, 0, winreg.REG_SZ, json.dumps(backup, ensure_ascii=False))
             winreg.DeleteValue(key, name)
         log_success(f"Удалён из автозагрузки: {name}")
+        return True
     except Exception as e:
         log_error(f"Ошибка удаления {name}: {e}")
+        return False
 
 
 def restore_startup_item(name, log_success, log_error, log_info):
@@ -163,8 +167,10 @@ def restore_startup_item(name, log_success, log_error, log_info):
         with winreg.CreateKeyEx(int(data["hive"]), data["path"], 0, winreg.KEY_SET_VALUE) as key:
             winreg.SetValueEx(key, data["name"], 0, int(data["type"]), _stored_registry_value(data))
         log_success(f"Восстановлен в автозагрузке: {name}")
+        return True
     except Exception as e:
         log_error(f"Ошибка восстановления {name}: {e}")
+        return False
 
 
 def disable_all_safe(log_success, log_error, log_info):
@@ -177,9 +183,14 @@ def disable_all_safe(log_success, log_error, log_info):
         return
 
     log_info(f"Найдено {len(safe)} безопасных элементов для отключения...")
-    for item in safe:
-        disable_startup_item(item, log_success, log_error, log_info)
-    log_success(f"Автозагрузка оптимизирована: отключено {len(safe)} элементов.")
+    disabled = sum(
+        bool(disable_startup_item(item, log_success, log_error, log_info))
+        for item in safe
+    )
+    if disabled:
+        log_success(f"Автозагрузка оптимизирована: фактически отключено {disabled}/{len(safe)} элементов.")
+    else:
+        log_error("Не удалось отключить ни одного элемента автозагрузки.")
 
 
 def get_startup_report(log_success, log_error, log_info):

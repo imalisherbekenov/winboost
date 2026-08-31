@@ -21,17 +21,20 @@ def disable_auto_drivers(log_success, log_error, log_info):
     """Disable automatic driver updates via Windows Update."""
     log_info("Отключение автоматической установки драйверов...")
     try:
-        set_reg_value(
+        policy_ok = set_reg_value(
             winreg.HKEY_LOCAL_MACHINE,
             r"SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate",
             "ExcludeWUDriversInQualityUpdate", 1
         )
-        set_reg_value(
+        search_ok = set_reg_value(
             winreg.HKEY_LOCAL_MACHINE,
             r"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching",
             "SearchOrderConfig", 0
         )
-        log_success("Автоматическая установка драйверов отключена.")
+        if policy_ok and search_ok:
+            log_success("Автоматическая установка драйверов отключена.")
+        else:
+            log_error("Настройки автоустановки драйверов применены не полностью.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -40,11 +43,16 @@ def disable_telemetry_tasks(log_success, log_error, log_info):
     log_info("Отключение телеметрических задач...")
     count = 0
     for task in TELEMETRY_TASKS:
-        ok, _, _ = run_cmd(["schtasks", "/Change", "/TN", task, "/DISABLE"])
+        ok, stdout, error = run_cmd(["schtasks", "/Change", "/TN", task, "/DISABLE"])
         if ok:
             count += 1
-    
-    log_success(f"Отключено {count} задач телеметрии.")
+        else:
+            reason = (error or stdout).strip() or "команда завершилась без описания"
+            log_error(f"Не удалось отключить задачу {task}: {reason}")
+    if count:
+        log_success(f"Фактически отключено {count}/{len(TELEMETRY_TASKS)} задач телеметрии.")
+    else:
+        log_error("Не удалось отключить ни одной задачи телеметрии.")
 
 def pause_updates(log_success, log_error, log_info):
     """Pause Windows Updates by setting a far date (registry tweak)."""
@@ -52,8 +60,11 @@ def pause_updates(log_success, log_error, log_info):
     try:
         # Set pause start time to a very long time ago or just set a flag
         # This is a complex area, simplified here
-        set_reg_value(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings", "PauseUpdatesExpiryTime", "2099-12-31T23:59:59Z", winreg.REG_SZ)
-        log_success("Обновления приостановлены до 2099 года.")
+        changed = set_reg_value(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings", "PauseUpdatesExpiryTime", "2099-12-31T23:59:59Z", winreg.REG_SZ)
+        if changed:
+            log_success("Обновления приостановлены до 2099 года.")
+        else:
+            log_error("Не удалось записать срок приостановки обновлений в реестр.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 

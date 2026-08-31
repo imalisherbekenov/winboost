@@ -5,24 +5,11 @@ CPU priority, mouse acceleration, Nagle, Game Mode, Game Bar.
 import winreg
 from modules.registry import set_reg_value, set_multi_reg
 
-def optimize_cpu_priority(log_success, log_error, log_info, game_exe="game.exe"):
-    """Set CPU priority to High for a game executable."""
-    log_info(f"Установка приоритета CPU для {game_exe}...")
-    try:
-        set_reg_value(
-            winreg.HKEY_LOCAL_MACHINE,
-            rf"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\{game_exe}\PerfOptions",
-            "CpuPriorityClass", 3
-        )
-        log_success(f"Приоритет CPU для {game_exe} — High.")
-    except Exception as e:
-        log_error(f"Ошибка: {e}")
-
 def disable_mouse_acceleration(log_success, log_error, log_info):
     """Disable mouse acceleration (enhance pointer precision)."""
     log_info("Отключение акселерации мыши...")
     try:
-        set_multi_reg(
+        changed = set_multi_reg(
             winreg.HKEY_CURRENT_USER,
             r"Control Panel\Mouse",
             {
@@ -31,7 +18,10 @@ def disable_mouse_acceleration(log_success, log_error, log_info):
                 "MouseThreshold2": (winreg.REG_SZ, "0"),
             },
         )
-        log_success("Акселерация мыши отключена.")
+        if changed == 3:
+            log_success("Акселерация мыши отключена.")
+        else:
+            log_error(f"Настройки мыши применены не полностью: {changed}/3.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -42,16 +32,27 @@ def optimize_nagle(log_success, log_error, log_info):
         base = r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces"
         key = winreg.OpenKeyEx(winreg.HKEY_LOCAL_MACHINE, base, 0, winreg.KEY_READ)
         i = 0
+        changed = 0
+        failed = 0
         while True:
             try:
                 subkey_name = winreg.EnumKey(key, i)
-                set_reg_value(winreg.HKEY_LOCAL_MACHINE, f"{base}\\{subkey_name}", "TcpAckFrequency", 1)
-                set_reg_value(winreg.HKEY_LOCAL_MACHINE, f"{base}\\{subkey_name}", "TCPNoDelay", 1)
+                ack_ok = set_reg_value(winreg.HKEY_LOCAL_MACHINE, f"{base}\\{subkey_name}", "TcpAckFrequency", 1)
+                delay_ok = set_reg_value(winreg.HKEY_LOCAL_MACHINE, f"{base}\\{subkey_name}", "TCPNoDelay", 1)
+                if ack_ok and delay_ok:
+                    changed += 1
+                else:
+                    failed += 1
                 i += 1
             except OSError:
                 break
         winreg.CloseKey(key)
-        log_success("Алгоритм Нейгла отключён (сетевая задержка снижена).")
+        if changed:
+            log_success(f"Алгоритм Нейгла отключён на интерфейсах: {changed}.")
+        if failed:
+            log_error(f"Не удалось полностью настроить интерфейсов: {failed}.")
+        if not changed:
+            log_error("Не удалось настроить ни одного сетевого интерфейса.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -59,17 +60,20 @@ def disable_game_bar(log_success, log_error, log_info):
     """Disable Xbox Game Bar and overlay."""
     log_info("Отключение Xbox Game Bar...")
     try:
-        set_reg_value(
+        capture_ok = set_reg_value(
             winreg.HKEY_CURRENT_USER,
             r"SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR",
             "AppCaptureEnabled", 0
         )
-        set_reg_value(
+        dvr_ok = set_reg_value(
             winreg.HKEY_CURRENT_USER,
             r"System\GameConfigStore",
             "GameDVR_Enabled", 0
         )
-        log_success("Xbox Game Bar отключён.")
+        if capture_ok and dvr_ok:
+            log_success("Xbox Game Bar отключён.")
+        else:
+            log_error("Настройки Xbox Game Bar применены не полностью.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -77,17 +81,20 @@ def enable_game_mode(log_success, log_error, log_info):
     """Enable Windows Game Mode."""
     log_info("Включение Game Mode...")
     try:
-        set_reg_value(
+        allow_ok = set_reg_value(
             winreg.HKEY_CURRENT_USER,
             r"Software\Microsoft\GameBar",
             "AllowAutoGameMode", 1
         )
-        set_reg_value(
+        mode_ok = set_reg_value(
             winreg.HKEY_CURRENT_USER,
             r"Software\Microsoft\GameBar",
             "AutoGameModeEnabled", 1
         )
-        log_success("Game Mode активирован.")
+        if allow_ok and mode_ok:
+            log_success("Game Mode активирован.")
+        else:
+            log_error("Настройки Game Mode применены не полностью.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 

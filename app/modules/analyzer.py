@@ -4,7 +4,6 @@ Thorough multi-stage scan: hardware, services, privacy, network,
 disk, memory, startup, drivers, power plan, visual effects.
 Reports progress via callback for each stage.
 """
-import subprocess
 import platform
 import psutil
 import winreg
@@ -12,22 +11,42 @@ import os
 import time
 from typing import Callable, Optional
 
-
-def _get_wmic(query: str) -> str:
-    try:
-        r = subprocess.run(["wmic"] + query.split(), capture_output=True, text=True, timeout=10)
-        lines = [l.strip() for l in r.stdout.strip().split("\n") if l.strip()]
-        return lines[1] if len(lines) > 1 else "Н/Д"
-    except Exception:
-        return "Н/Д"
+from modules import winshell
 
 
-def _svc_running(name: str) -> bool:
-    try:
-        r = subprocess.run(["sc", "query", name], capture_output=True, text=True, timeout=5)
-        return "RUNNING" in r.stdout
-    except Exception:
-        return False
+def _read_hardware_cim() -> tuple[dict[str, list[dict]], str, str]:
+    """Read CPU, video, and memory data in one CIM call.
+
+    The status differentiates a command error from a successful query that did
+    not return any hardware rows.
+    """
+    script = r"""
+@(
+    Get-CimInstance Win32_Processor -ErrorAction Stop |
+        Select-Object @{Name='Kind';Expression={'CPU'}},Name
+    Get-CimInstance Win32_VideoController -ErrorAction Stop |
+        Select-Object @{Name='Kind';Expression={'Video'}},Name,DriverVersion,AdapterRAM
+    Get-CimInstance Win32_PhysicalMemory -ErrorAction Stop |
+        Select-Object @{Name='Kind';Expression={'Memory'}},Speed
+)
+"""
+    ok, rows, error = winshell.run_ps_json(script, timeout=15)
+    grouped = {"CPU": [], "Video": [], "Memory": []}
+    if not ok:
+        return grouped, "error", error.strip() or "Не удалось выполнить CIM-запрос"
+    for row in rows:
+        kind = row.get("Kind") if isinstance(row, dict) else None
+        if kind in grouped:
+            grouped[kind].append(row)
+    status = "ok" if any(grouped.values()) else "no_data"
+    return grouped, status, ""
+
+
+def _svc_running(name: str) -> bool | None:
+    ok, stdout, _ = winshell.run_cmd(["sc.exe", "query", name], timeout=5)
+    if not ok:
+        return None
+    return "RUNNING" in stdout.upper()
 
 
 def _reg_value(hive, path, name, default=None):
@@ -38,11 +57,6 @@ def _reg_value(hive, path, name, default=None):
         return val
     except Exception:
         return default
-
-
-def _reg_disabled(hive, path, name) -> bool:
-    val = _reg_value(hive, path, name, default=None)
-    return val == 0 or val == 1  # disabled = AllowX=0 or DisableX=1
 
 
 def _count_startup_items() -> int:
@@ -84,30 +98,51 @@ def analyze_system(progress_cb: Optional[Callable] = None) -> dict:
     info = {}
     total_stages = 10
 
+    # Prime psutil's non-blocking CPU counter. Its first result is always
+    # meaningless, so intentionally discard it and read again after CIM work.
+    try:
+        psutil.cpu_percent(interval=None)
+    except Exception:
+        pass
+
     def _progress(name, num):
         if progress_cb:
             progress_cb(name, num, total_stages)
-        time.sleep(0.3)  # deliberate pause so user sees each stage
 
     # ═══ Stage 1: CPU ═══
     _progress("Сканирование процессора...", 1)
-    info["cpu_name"] = platform.processor() or _get_wmic("cpu get Name")
-    info["cpu_cores"] = psutil.cpu_count(logical=False) or 0
-    info["cpu_threads"] = psutil.cpu_count(logical=True) or 0
-    info["cpu_freq_mhz"] = 0
+    hardware, cim_status, cim_error = _read_hardware_cim()
+    info["cim_status"] = cim_status
+    info["cim_error"] = cim_error
+    cpu_names = [str(row.get("Name", "")).strip() for row in hardware["CPU"]]
+    cpu_names = [name for name in cpu_names if name]
+    info["cpu_name"] = cpu_names[0] if cpu_names else (platform.processor() or "Н/Д")
+    try:
+        info["cpu_cores"] = psutil.cpu_count(logical=False)
+    except Exception:
+        info["cpu_cores"] = None
+    try:
+        info["cpu_threads"] = psutil.cpu_count(logical=True)
+    except Exception:
+        info["cpu_threads"] = None
+    info["cpu_freq_mhz"] = None
     try:
         freq = psutil.cpu_freq()
         if freq:
             info["cpu_freq_mhz"] = int(freq.current)
     except Exception:
         pass
-    info["cpu_usage"] = psutil.cpu_percent(interval=1)
+    try:
+        info["cpu_usage"] = psutil.cpu_percent()
+    except Exception:
+        info["cpu_usage"] = None
 
     # ═══ Stage 2: GPU ═══
     _progress("Сканирование видеокарты...", 2)
-    info["gpu_name"] = _get_wmic("path win32_VideoController get Name")
-    info["gpu_driver"] = _get_wmic("path win32_VideoController get DriverVersion")
-    info["gpu_vram"] = _get_wmic("path win32_VideoController get AdapterRAM")
+    video = hardware["Video"][0] if hardware["Video"] else {}
+    info["gpu_name"] = str(video.get("Name") or "Н/Д")
+    info["gpu_driver"] = str(video.get("DriverVersion") or "Н/Д")
+    info["gpu_vram"] = video.get("AdapterRAM")
     try:
         vram_bytes = int(info["gpu_vram"])
         info["gpu_vram_fmt"] = _fmt_bytes(vram_bytes)
@@ -116,19 +151,35 @@ def analyze_system(progress_cb: Optional[Callable] = None) -> dict:
 
     # ═══ Stage 3: RAM ═══
     _progress("Сканирование оперативной памяти...", 3)
-    mem = psutil.virtual_memory()
-    info["ram_total_gb"] = round(mem.total / (1024**3), 1)
-    info["ram_used_gb"] = round(mem.used / (1024**3), 1)
-    info["ram_usage_pct"] = mem.percent
-    info["ram_speed"] = _get_wmic("memorychip get Speed")
-    swap = psutil.swap_memory()
-    info["swap_total_gb"] = round(swap.total / (1024**3), 1)
-    info["swap_used_pct"] = swap.percent
+    try:
+        mem = psutil.virtual_memory()
+        info["ram_total_gb"] = round(mem.total / (1024**3), 1)
+        info["ram_used_gb"] = round(mem.used / (1024**3), 1)
+        info["ram_usage_pct"] = mem.percent
+    except Exception:
+        info["ram_total_gb"] = None
+        info["ram_used_gb"] = None
+        info["ram_usage_pct"] = None
+    ram_speeds = [row.get("Speed") for row in hardware["Memory"] if row.get("Speed")]
+    info["ram_speed"] = max(ram_speeds) if ram_speeds else "Н/Д"
+    try:
+        swap = psutil.swap_memory()
+        info["swap_total_gb"] = round(swap.total / (1024**3), 1)
+        info["swap_used_pct"] = swap.percent
+    except Exception:
+        info["swap_total_gb"] = None
+        info["swap_used_pct"] = None
 
     # ═══ Stage 4: Disk ═══
     _progress("Сканирование дисков...", 4)
     info["disks"] = []
-    for part in psutil.disk_partitions(all=False):
+    info["disks_available"] = True
+    try:
+        partitions = psutil.disk_partitions(all=False)
+    except Exception:
+        partitions = []
+        info["disks_available"] = False
+    for part in partitions:
         try:
             usage = psutil.disk_usage(part.mountpoint)
             info["disks"].append({
@@ -140,18 +191,32 @@ def analyze_system(progress_cb: Optional[Callable] = None) -> dict:
                 "pct": usage.percent,
             })
         except Exception:
-            pass
+            info["disks"].append({
+                "mount": part.mountpoint,
+                "fs": part.fstype,
+                "total_gb": None,
+                "used_gb": None,
+                "free_gb": None,
+                "pct": None,
+            })
 
     # ═══ Stage 5: OS & Uptime ═══
     _progress("Сканирование системы...", 5)
     info["os_name"] = platform.platform()
     info["os_build"] = platform.version()
-    boot_time = psutil.boot_time()
-    uptime_sec = time.time() - boot_time
-    uptime_h = int(uptime_sec // 3600)
-    uptime_m = int((uptime_sec % 3600) // 60)
-    info["uptime"] = f"{uptime_h}ч {uptime_m}мин"
-    info["process_count"] = len(psutil.pids())
+    uptime_h = None
+    try:
+        boot_time = psutil.boot_time()
+        uptime_sec = time.time() - boot_time
+        uptime_h = int(uptime_sec // 3600)
+        uptime_m = int((uptime_sec % 3600) // 60)
+        info["uptime"] = f"{uptime_h}ч {uptime_m}мин"
+    except Exception:
+        info["uptime"] = None
+    try:
+        info["process_count"] = len(psutil.pids())
+    except Exception:
+        info["process_count"] = None
 
     # ═══ Stage 6: Services ═══
     _progress("Проверка служб Windows...", 6)
@@ -212,48 +277,51 @@ def analyze_system(progress_cb: Optional[Callable] = None) -> dict:
 
     # ═══ Stage 9: Network ═══
     _progress("Проверка сетевых настроек...", 9)
-    net_io = psutil.net_io_counters()
-    info["net_sent_gb"] = round(net_io.bytes_sent / (1024**3), 2)
-    info["net_recv_gb"] = round(net_io.bytes_recv / (1024**3), 2)
-    info["net_adapters"] = []
     try:
-        addrs = psutil.net_if_addrs()
+        net_io = psutil.net_io_counters()
+        info["net_sent_gb"] = round(net_io.bytes_sent / (1024**3), 2)
+        info["net_recv_gb"] = round(net_io.bytes_recv / (1024**3), 2)
+    except Exception:
+        info["net_sent_gb"] = None
+        info["net_recv_gb"] = None
+    info["net_adapters"] = []
+    info["net_adapters_available"] = True
+    try:
         stats = psutil.net_if_stats()
         for name, stat in stats.items():
             if stat.isup and name != "Loopback Pseudo-Interface 1":
                 speed = f"{stat.speed} Mbps" if stat.speed > 0 else "Н/Д"
                 info["net_adapters"].append({"name": name, "speed": speed})
     except Exception:
-        pass
+        info["net_adapters_available"] = False
 
     # ═══ Stage 10: Power Plan ═══
     _progress("Проверка плана электропитания...", 10)
-    try:
-        r = subprocess.run(["powercfg", "/getactivescheme"], capture_output=True, text=True, timeout=5)
-        info["power_plan"] = r.stdout.strip().split("(")[-1].rstrip(")") if r.returncode == 0 else "Н/Д"
-    except Exception:
-        info["power_plan"] = "Н/Д"
+    ok, stdout, _ = winshell.run_cmd(["powercfg", "/getactivescheme"], timeout=5)
+    info["power_plan"] = stdout.strip().split("(")[-1].rstrip(")") if ok and stdout.strip() else "Н/Д"
 
     # ═══ Calculate Scores ═══
     # Bottleneck
-    if info["cpu_cores"] <= 4:
+    if info["cpu_cores"] is not None and info["cpu_cores"] <= 4:
         info["bottleneck"] = "CPU (мало ядер)"
-    elif info["ram_total_gb"] < 8:
+    elif info["ram_total_gb"] is not None and info["ram_total_gb"] < 8:
         info["bottleneck"] = "RAM (мало памяти)"
-    else:
+    elif info["cpu_cores"] is not None and info["ram_total_gb"] is not None:
         info["bottleneck"] = "GPU (графика)"
+    else:
+        info["bottleneck"] = "N/A"
 
     # Optimization score (0-100)
     opt = 0
-    if not info["services"]["DiagTrack"]["running"]:
+    if info["services"]["DiagTrack"]["running"] is False:
         opt += 15
-    if not info["services"]["SysMain"]["running"]:
+    if info["services"]["SysMain"]["running"] is False:
         opt += 10
-    if not info["services"]["WSearch"]["running"]:
+    if info["services"]["WSearch"]["running"] is False:
         opt += 10
-    if not info["services"]["Fax"]["running"]:
+    if info["services"]["Fax"]["running"] is False:
         opt += 5
-    if not info["services"]["RemoteRegistry"]["running"]:
+    if info["services"]["RemoteRegistry"]["running"] is False:
         opt += 5
     if info["visual_fx"] == 2:
         opt += 15
@@ -275,14 +343,14 @@ def analyze_system(progress_cb: Optional[Callable] = None) -> dict:
 
     # Stability
     stability = 50
-    if info["ram_usage_pct"] < 70:
+    if info["ram_usage_pct"] is not None and info["ram_usage_pct"] < 70:
         stability += 15
-    if info["cpu_usage"] < 50:
+    if info["cpu_usage"] is not None and info["cpu_usage"] < 50:
         stability += 10
     for d in info["disks"]:
-        if d["pct"] < 85:
+        if d["pct"] is not None and d["pct"] < 85:
             stability += 5
-    if uptime_h < 72:
+    if uptime_h is not None and uptime_h < 72:
         stability += 10
     info["stability_score"] = min(100, stability)
 
@@ -296,32 +364,39 @@ def format_analysis(info: dict) -> list[tuple[str, str]]:
     """
     lines = []
 
+    def display(value):
+        return "N/A" if value is None else value
+
     # Hardware
     lines.append(("═══ АППАРАТНОЕ ОБЕСПЕЧЕНИЕ ═══", "header"))
     lines.append((f"  CPU:  {info['cpu_name']}", "info"))
-    lines.append((f"        {info['cpu_cores']} ядер / {info['cpu_threads']} потоков, {info['cpu_freq_mhz']} MHz", "info"))
+    lines.append((f"        {display(info['cpu_cores'])} ядер / {display(info['cpu_threads'])} потоков, "
+                  f"{display(info['cpu_freq_mhz'])} MHz, загрузка: {display(info['cpu_usage'])}%", "info"))
     lines.append((f"  GPU:  {info['gpu_name']}", "info"))
     lines.append((f"        Драйвер: {info['gpu_driver']}, VRAM: {info['gpu_vram_fmt']}", "info"))
-    lines.append((f"  RAM:  {info['ram_total_gb']} GB (использование: {info['ram_usage_pct']}%)", "info"))
-    lines.append((f"        Частота: {info['ram_speed']} MHz, PageFile: {info['swap_total_gb']} GB", "info"))
+    lines.append((f"  RAM:  {display(info['ram_total_gb'])} GB (использование: {display(info['ram_usage_pct'])}%)", "info"))
+    lines.append((f"        Частота: {info['ram_speed']} MHz, PageFile: {display(info['swap_total_gb'])} GB", "info"))
     lines.append((f"  OS:   {info['os_name']}", "info"))
-    lines.append((f"        Uptime: {info['uptime']}, Процессов: {info['process_count']}", "info"))
+    lines.append((f"        Uptime: {display(info['uptime'])}, Процессов: {display(info['process_count'])}", "info"))
 
     # Disks
     lines.append(("", "info"))
     lines.append(("═══ ДИСКИ ═══", "header"))
+    if not info.get("disks_available", True):
+        lines.append(("  Данные о дисках: unavailable", "info"))
     for d in info["disks"]:
-        status = "warn" if d["pct"] > 85 else "good"
-        lines.append((f"  {d['mount']}  {d['used_gb']}/{d['total_gb']} GB ({d['pct']}%)  [{d['fs']}]", status))
+        status = "info" if d["pct"] is None else ("warn" if d["pct"] > 85 else "good")
+        lines.append((f"  {d['mount']}  {display(d['used_gb'])}/{display(d['total_gb'])} GB "
+                      f"({display(d['pct'])}%)  [{d['fs']}]", status))
 
     # Services
     lines.append(("", "info"))
     lines.append(("═══ СЛУЖБЫ ═══", "header"))
     for svc_id, svc_data in info["services"].items():
         running = svc_data["running"]
-        icon = "⚠" if running else "✓"
-        status = "warn" if running else "good"
-        state = "АКТИВНА" if running else "отключена"
+        icon = "?" if running is None else ("⚠" if running else "✓")
+        status = "info" if running is None else ("warn" if running else "good")
+        state = "Н/Д" if running is None else ("АКТИВНА" if running else "отключена")
         lines.append((f"  {icon} {svc_data['name']} ({svc_id}): {state}", status))
 
     # Privacy
@@ -356,8 +431,10 @@ def format_analysis(info: dict) -> list[tuple[str, str]]:
     # Network
     lines.append(("", "info"))
     lines.append(("═══ СЕТЬ ═══", "header"))
+    if not info.get("net_adapters_available", True):
+        lines.append(("  Сетевые адаптеры: unavailable", "info"))
     for adapter in info.get("net_adapters", []):
         lines.append((f"  {adapter['name']}: {adapter['speed']}", "info"))
-    lines.append((f"  Трафик: ↑{info['net_sent_gb']} GB / ↓{info['net_recv_gb']} GB", "info"))
+    lines.append((f"  Трафик: ↑{display(info['net_sent_gb'])} GB / ↓{display(info['net_recv_gb'])} GB", "info"))
 
     return lines

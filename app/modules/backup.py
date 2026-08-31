@@ -213,8 +213,11 @@ def _capture_tasks(names: list[str]) -> list[dict]:
 def _capture_power(enabled: bool) -> dict:
     if not enabled:
         return {}
-    _, stdout, stderr = run_cmd(["powercfg", "/getactivescheme"])
-    match = GUID_RE.search(f"{stdout}\n{stderr}")
+    ok, stdout, stderr = run_cmd(["powercfg", "/getactivescheme"])
+    if not ok:
+        logger.error("Failed to read active power plan: %s", (stderr or stdout).strip())
+        return {}
+    match = GUID_RE.search(stdout)
     return {"active_guid": match.group(0)} if match else {}
 
 

@@ -8,20 +8,36 @@ from modules.backup import merge_effects
 from modules.registry import set_reg_value, set_multi_reg
 from modules.winshell import run_cmd
 
+
+def _command_error(stdout: str, stderr: str) -> str:
+    return (stderr or stdout).strip() or "команда завершилась с ошибкой без описания"
+
 def disable_telemetry(log_success, log_error, log_info):
     """Disable Microsoft telemetry (DiagTrack, dmwappushservice, DataCollection)."""
     log_info("Отключение телеметрии Microsoft...")
     try:
+        services_ok = True
         for svc in ("DiagTrack", "dmwappushservice"):
-            run_cmd(["sc.exe", "config", svc, "start=", "disabled"])
-            run_cmd(["sc.exe", "stop", svc])
+            config_ok, config_out, config_error = run_cmd(
+                ["sc.exe", "config", svc, "start=", "disabled"]
+            )
+            stop_ok, stop_out, stop_error = run_cmd(["sc.exe", "stop", svc])
+            if not config_ok:
+                services_ok = False
+                log_error(f"Не удалось отключить автозапуск {svc}: {_command_error(config_out, config_error)}")
+            if not stop_ok:
+                services_ok = False
+                log_error(f"Не удалось остановить {svc}: {_command_error(stop_out, stop_error)}")
 
-        set_reg_value(
+        registry_ok = set_reg_value(
             winreg.HKEY_LOCAL_MACHINE,
             r"SOFTWARE\Policies\Microsoft\Windows\DataCollection",
             "AllowTelemetry", 0
         )
-        log_success("Телеметрия отключена.")
+        if not registry_ok:
+            log_error("Не удалось записать политику телеметрии в реестр (требуются права администратора).")
+        if services_ok and registry_ok:
+            log_success("Телеметрия отключена.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -29,7 +45,7 @@ def disable_cortana(log_success, log_error, log_info):
     """Disable Cortana voice assistant."""
     log_info("Отключение Cortana...")
     try:
-        set_multi_reg(
+        changed = set_multi_reg(
             winreg.HKEY_LOCAL_MACHINE,
             r"SOFTWARE\Policies\Microsoft\Windows\Windows Search",
             {
@@ -38,7 +54,10 @@ def disable_cortana(log_success, log_error, log_info):
                 "AllowSearchToUseLocation": (winreg.REG_DWORD, 0),
             },
         )
-        log_success("Cortana отключена.")
+        if changed == 3:
+            log_success("Cortana отключена.")
+        else:
+            log_error(f"Настройки Cortana применены не полностью: {changed}/3.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -46,7 +65,7 @@ def disable_timeline(log_success, log_error, log_info):
     """Disable Timeline and Activity History."""
     log_info("Отключение Timeline и Activity History...")
     try:
-        set_multi_reg(
+        changed = set_multi_reg(
             winreg.HKEY_LOCAL_MACHINE,
             r"SOFTWARE\Policies\Microsoft\Windows\System",
             {
@@ -55,7 +74,10 @@ def disable_timeline(log_success, log_error, log_info):
                 "UploadUserActivities": (winreg.REG_DWORD, 0),
             },
         )
-        log_success("Timeline и Activity History отключены.")
+        if changed == 3:
+            log_success("Timeline и Activity History отключены.")
+        else:
+            log_error(f"Настройки Timeline применены не полностью: {changed}/3.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -63,17 +85,20 @@ def disable_advertising_id(log_success, log_error, log_info):
     """Disable Advertising ID tracking."""
     log_info("Отключение Advertising ID...")
     try:
-        set_reg_value(
+        user_ok = set_reg_value(
             winreg.HKEY_CURRENT_USER,
             r"Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo",
             "Enabled", 0
         )
-        set_reg_value(
+        policy_ok = set_reg_value(
             winreg.HKEY_LOCAL_MACHINE,
             r"SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo",
             "DisabledByGroupPolicy", 1
         )
-        log_success("Advertising ID отключён.")
+        if user_ok and policy_ok:
+            log_success("Advertising ID отключён.")
+        else:
+            log_error("Настройки Advertising ID применены не полностью.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -81,12 +106,15 @@ def disable_wifi_sense(log_success, log_error, log_info):
     """Disable Wi-Fi Sense auto-connect."""
     log_info("Отключение Wi-Fi Sense...")
     try:
-        set_reg_value(
+        changed = set_reg_value(
             winreg.HKEY_LOCAL_MACHINE,
             r"SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\config",
             "AutoConnectAllowedOEM", 0
         )
-        log_success("Wi-Fi Sense отключён.")
+        if changed:
+            log_success("Wi-Fi Sense отключён.")
+        else:
+            log_error("Не удалось записать настройку Wi-Fi Sense в реестр.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -94,7 +122,7 @@ def disable_location_tracking(log_success, log_error, log_info):
     """Disable Windows location tracking."""
     log_info("Отключение отслеживания местоположения...")
     try:
-        set_multi_reg(
+        changed = set_multi_reg(
             winreg.HKEY_LOCAL_MACHINE,
             r"SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors",
             {
@@ -103,7 +131,10 @@ def disable_location_tracking(log_success, log_error, log_info):
                 "DisableLocationScripting": (winreg.REG_DWORD, 1),
             },
         )
-        log_success("Отслеживание местоположения отключено.")
+        if changed == 3:
+            log_success("Отслеживание местоположения отключено.")
+        else:
+            log_error(f"Настройки геолокации применены не полностью: {changed}/3.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -111,12 +142,15 @@ def disable_feedback(log_success, log_error, log_info):
     """Disable feedback prompts."""
     log_info("Отключение запросов обратной связи...")
     try:
-        set_reg_value(
+        changed = set_reg_value(
             winreg.HKEY_CURRENT_USER,
             r"Software\Microsoft\Siuf\Rules",
             "NumberOfSIUFInPeriod", 0
         )
-        log_success("Запросы обратной связи отключены.")
+        if changed:
+            log_success("Запросы обратной связи отключены.")
+        else:
+            log_error("Не удалось записать настройку Feedback в реестр.")
     except Exception as e:
         log_error(f"Ошибка: {e}")
 
@@ -130,7 +164,7 @@ def apply_all_privacy(log_success, log_error, log_info):
     disable_wifi_sense(log_success, log_error, log_info)
     disable_location_tracking(log_success, log_error, log_info)
     disable_feedback(log_success, log_error, log_info)
-    log_success("Все настройки приватности применены.")
+    log_info("Применение набора настроек приватности завершено; результаты указаны выше.")
 
 TELEMETRY_EFFECTS = {
     "registry": [{"hive": winreg.HKEY_LOCAL_MACHINE, "path": r"SOFTWARE\Policies\Microsoft\Windows\DataCollection", "name": "AllowTelemetry"}],
