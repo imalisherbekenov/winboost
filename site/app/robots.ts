@@ -8,6 +8,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    sitemap: "https://winboost.app/sitemap.xml",
+    sitemap: "https://winboost.vercel.app/sitemap.xml",
   };
 }

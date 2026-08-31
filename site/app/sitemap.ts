@@ -6,7 +6,7 @@ const pages = ["", "/privacy", "/terms", "/contacts"];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return pages.map((path, index) => ({
-    url: `https://winboost.app${path}`,
+    url: `https://winboost.vercel.app${path}`,
     lastModified: "2026-08-31",
     changeFrequency: index === 0 ? "monthly" : "yearly",
     priority: index === 0 ? 1 : 0.5,

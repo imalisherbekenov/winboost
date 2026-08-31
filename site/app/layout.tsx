@@ -21,7 +21,7 @@ const jetBrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-const siteUrl = "https://winboost.app";
+const siteUrl = "https://winboost.vercel.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
