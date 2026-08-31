@@ -1,7 +1,8 @@
 # WinBoost Build Script
 # Run: powershell -ExecutionPolicy Bypass -File build.ps1
 
-Write-Host "=== WinBoost 2.1 Build ===" -ForegroundColor Cyan
+$version = (Select-String -Path WinBoostGUI.py -Pattern 'APP_TITLE\s*=\s*"WinBoost ([\d.]+)"').Matches[0].Groups[1].Value
+Write-Host "=== WinBoost $version Build ===" -ForegroundColor Cyan
 
 # Install deps
 Write-Host "[1/3] Installing dependencies..." -ForegroundColor Yellow
@@ -18,7 +19,6 @@ pyinstaller --onefile --noconsole --name WinBoost `
     --add-data "modules;modules" `
     --collect-all dearpygui `
     --hidden-import psutil `
-    --hidden-import plistlib `
     --uac-admin `
     --icon NONE `
     WinBoostGUI.py
