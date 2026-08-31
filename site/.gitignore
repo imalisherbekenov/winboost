@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+.npm-cache/
+.localappdata/
+.playwright/
+.playwright-browsers/
+output/
+.devserver.log
+.devserver.err
+*.tsbuildinfo
