@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+.npm-cache
+.playwright
+.playwright-browsers
+.localappdata
+output
+.devserver.log
+.devserver.err
+.omc

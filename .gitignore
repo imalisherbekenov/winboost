@@ -165,7 +165,7 @@ venv.bak/
 .ropeproject
 
 # mkdocs documentation
-/site
+# /site  -- MkDocs rule from the Python template; here /site is the landing page
 
 # mypy
 .mypy_cache/
