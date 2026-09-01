@@ -10,7 +10,8 @@ import queue
 import subprocess
 import sys
 import threading
-import warnings
+import time
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -35,36 +36,50 @@ APP_TITLE = "WinBoost 3.0"
 WINDOW_WIDTH = 1180
 WINDOW_HEIGHT = 800
 
-ACCENT = (59, 130, 246, 255)
-ACCENT2 = (139, 92, 246, 255)
-GREEN = (16, 185, 129, 255)
-YELLOW = (245, 158, 11, 255)
-RED = (239, 68, 68, 255)
-BLUE = (59, 130, 246, 255)
+VOID = (0, 0, 0, 255)
+TRANSPARENT = (0, 0, 0, 0)
+HAIRLINE = (41, 45, 48, 255)
+WHITE = (255, 255, 255, 255)
+BONE = (240, 240, 240, 255)
+MUTED = (161, 164, 165, 255)
+IRON = (110, 114, 122, 255)
 
-RISK_COLORS = {"red": RED, "yellow": YELLOW, "blue": BLUE}
-RISK_LABELS = {"red": "КРАСНЫЙ", "yellow": "ЖЁЛТЫЙ", "blue": "СИНИЙ"}
+# Semantic color is reserved for risk and status data. Violet belongs only to
+# technical/log text; it is deliberately not a general UI accent.
+LOG_TECHNICAL = (146, 129, 247, 255)
+GREEN = (58, 211, 137, 255)
+YELLOW = (255, 202, 22, 255)
+RED = (255, 149, 146, 255)
+BLUE = GREEN
+ACCENT = WHITE
+ACCENT2 = MUTED
+
+RISK_COLORS = {"red": RED, "yellow": YELLOW, "blue": GREEN, "green": GREEN}
+RISK_LABELS = {
+    "red": "ВЫСОКИЙ РИСК",
+    "yellow": "ОСТОРОЖНО",
+    "blue": "БЕЗОПАСНО",
+    "green": "БЕЗОПАСНО",
+}
 
 PALETTE = {
     "dark": {
-        "bg": (11, 14, 20, 255),
-        "card": (21, 26, 35, 255),
-        "card2": (31, 38, 51, 255),
-        "text": (248, 250, 252, 255),
-        "dim": (148, 163, 184, 255),
-        "border": (30, 41, 59, 255),
-    },
-    "light": {
-        "bg": (245, 247, 250, 255),
-        "card": (255, 255, 255, 255),
-        "card2": (226, 232, 240, 255),
-        "text": (15, 23, 42, 255),
-        "dim": (100, 116, 139, 255),
-        "border": (203, 213, 225, 255),
-    },
+        "bg": VOID,
+        "card": VOID,
+        "card2": TRANSPARENT,
+        "text": BONE,
+        "dim": MUTED,
+        "border": HAIRLINE,
+    }
 }
 
 PAGE_NAMES = ("home", "wizard", "analysis", "expert", "startup", "backups", "log")
+
+
+def _resource_path(*parts: str) -> Path:
+    """Return an asset path for source runs and PyInstaller onefile builds."""
+    root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    return root.joinpath(*parts)
 
 
 def _display_text(value: Any) -> str:
@@ -102,36 +117,85 @@ def elevate() -> None:
     raise SystemExit(0)
 
 
-def _build_theme(palette: dict[str, tuple[int, int, int, int]]) -> int | str:
+def _build_theme() -> dict[str, int | str]:
+    themes: dict[str, int | str] = {}
     with dpg.theme() as theme:
         with dpg.theme_component(dpg.mvAll):
-            dpg.add_theme_color(dpg.mvThemeCol_WindowBg, palette["bg"])
-            dpg.add_theme_color(dpg.mvThemeCol_ChildBg, palette["card"])
-            dpg.add_theme_color(dpg.mvThemeCol_PopupBg, palette["card"])
-            dpg.add_theme_color(dpg.mvThemeCol_Button, palette["card2"])
-            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, ACCENT)
-            dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, ACCENT)
-            dpg.add_theme_color(dpg.mvThemeCol_FrameBg, palette["card2"])
-            dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, palette["border"])
-            dpg.add_theme_color(dpg.mvThemeCol_Text, palette["text"])
-            dpg.add_theme_color(dpg.mvThemeCol_TextDisabled, palette["dim"])
-            dpg.add_theme_color(dpg.mvThemeCol_Border, palette["border"])
-            dpg.add_theme_color(dpg.mvThemeCol_Header, palette["card2"])
-            dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, ACCENT)
-            dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, ACCENT)
-            dpg.add_theme_color(dpg.mvThemeCol_TitleBg, palette["card"])
-            dpg.add_theme_color(dpg.mvThemeCol_TitleBgActive, palette["card"])
-            dpg.add_theme_color(dpg.mvThemeCol_TableHeaderBg, palette["card2"])
-            dpg.add_theme_color(dpg.mvThemeCol_TableBorderStrong, palette["border"])
-            dpg.add_theme_color(dpg.mvThemeCol_TableBorderLight, palette["border"])
-            dpg.add_theme_style(dpg.mvStyleVar_WindowRounding, 8)
-            dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, 8)
+            dpg.add_theme_color(dpg.mvThemeCol_WindowBg, VOID)
+            dpg.add_theme_color(dpg.mvThemeCol_ChildBg, VOID)
+            dpg.add_theme_color(dpg.mvThemeCol_PopupBg, VOID)
+            dpg.add_theme_color(dpg.mvThemeCol_Button, TRANSPARENT)
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, TRANSPARENT)
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, TRANSPARENT)
+            dpg.add_theme_color(dpg.mvThemeCol_FrameBg, VOID)
+            dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, VOID)
+            dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, VOID)
+            dpg.add_theme_color(dpg.mvThemeCol_CheckMark, WHITE)
+            dpg.add_theme_color(dpg.mvThemeCol_Text, BONE)
+            dpg.add_theme_color(dpg.mvThemeCol_TextDisabled, IRON)
+            dpg.add_theme_color(dpg.mvThemeCol_Border, HAIRLINE)
+            dpg.add_theme_color(dpg.mvThemeCol_BorderShadow, TRANSPARENT)
+            dpg.add_theme_color(dpg.mvThemeCol_Header, TRANSPARENT)
+            dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, TRANSPARENT)
+            dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, TRANSPARENT)
+            dpg.add_theme_color(dpg.mvThemeCol_TitleBg, VOID)
+            dpg.add_theme_color(dpg.mvThemeCol_TitleBgActive, VOID)
+            dpg.add_theme_color(dpg.mvThemeCol_TableHeaderBg, VOID)
+            dpg.add_theme_color(dpg.mvThemeCol_TableRowBg, VOID)
+            dpg.add_theme_color(dpg.mvThemeCol_TableRowBgAlt, VOID)
+            dpg.add_theme_color(dpg.mvThemeCol_TableBorderStrong, HAIRLINE)
+            dpg.add_theme_color(dpg.mvThemeCol_TableBorderLight, HAIRLINE)
+            dpg.add_theme_color(dpg.mvThemeCol_Separator, HAIRLINE)
+            dpg.add_theme_color(dpg.mvThemeCol_PlotHistogram, HAIRLINE)
+            dpg.add_theme_color(dpg.mvThemeCol_PlotHistogramHovered, MUTED)
+            dpg.add_theme_color(dpg.mvThemeCol_ScrollbarBg, VOID)
+            dpg.add_theme_color(dpg.mvThemeCol_ScrollbarGrab, HAIRLINE)
+            dpg.add_theme_style(dpg.mvStyleVar_WindowRounding, 0)
+            dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, 16)
             dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6)
             dpg.add_theme_style(dpg.mvStyleVar_GrabRounding, 6)
             dpg.add_theme_style(dpg.mvStyleVar_WindowBorderSize, 0)
-            dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 9, 7)
-            dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 9, 9)
-    return theme
+            dpg.add_theme_style(dpg.mvStyleVar_ChildBorderSize, 1)
+            dpg.add_theme_style(dpg.mvStyleVar_FrameBorderSize, 1)
+            dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 12, 12)
+            dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 10, 7)
+            dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 10, 10)
+    themes["global"] = theme
+
+    def surface(padding: int, spacing: int, rounding: int = 16) -> int | str:
+        with dpg.theme() as surface_theme:
+            with dpg.theme_component(dpg.mvAll):
+                dpg.add_theme_color(dpg.mvThemeCol_ChildBg, VOID)
+                dpg.add_theme_color(dpg.mvThemeCol_Border, HAIRLINE)
+                dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, padding, padding)
+                dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, spacing, spacing)
+                dpg.add_theme_style(dpg.mvStyleVar_ChildBorderSize, 1)
+                dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, rounding)
+        return surface_theme
+
+    themes["sidebar"] = surface(18, 10, 0)
+    themes["page"] = surface(16, 10, 0)
+    themes["card"] = surface(12, 8, 16)
+    themes["row"] = surface(10, 4, 16)
+    themes["list"] = surface(0, 4, 0)
+
+    def button(border: tuple[int, int, int, int], text: tuple[int, int, int, int]) -> int | str:
+        with dpg.theme() as button_theme:
+            with dpg.theme_component(dpg.mvButton):
+                dpg.add_theme_color(dpg.mvThemeCol_Text, text)
+                dpg.add_theme_color(dpg.mvThemeCol_Button, TRANSPARENT)
+                dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, TRANSPARENT)
+                dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, TRANSPARENT)
+                dpg.add_theme_color(dpg.mvThemeCol_Border, border)
+                dpg.add_theme_style(dpg.mvStyleVar_FrameBorderSize, 1)
+                dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 6)
+                dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 12, 7)
+        return button_theme
+
+    themes["button"] = button(HAIRLINE, BONE)
+    themes["button_hover"] = button(WHITE, WHITE)
+    themes["button_active"] = button(WHITE, WHITE)
+    return themes
 
 
 class WinBoostApp:
@@ -150,9 +214,15 @@ class WinBoostApp:
         self._log_items: list[int | str] = []
         self._scroll_log_pending = False
         self._themes: dict[str, int | str] = {}
-        self._theme_name = "dark"
         self._font_path = ""
         self._title_font: int | str = 0
+        self._section_font: int | str = 0
+        self._body_font: int | str = 0
+        self._label_font: int | str = 0
+        self._mono_font: int | str = 0
+        self._buttons: list[int | str] = []
+        self._active_buttons: set[int | str] = set()
+        self._nav_indicators: dict[str, int | str] = {}
         self._busy = False
         self._busy_name = ""
         self._active_page = "home"
@@ -206,40 +276,121 @@ class WinBoostApp:
             )
         return categories
 
-    def _load_font(self) -> None:
+    def _font_candidate(self, bundled_name: str, *fallback_names: str) -> Path:
+        bundled = _resource_path("assets", "fonts", bundled_name)
+        if bundled.exists():
+            return bundled
         windows_dir = Path(os.environ.get("WINDIR", r"C:\Windows"))
-        candidates = (
-            windows_dir / "Fonts" / "segoeui.ttf",
-            windows_dir / "Fonts" / "arial.ttf",
-        )
-        font_path = next((path for path in candidates if path.exists()), None)
-        if font_path is None:
+        candidates = [windows_dir / "Fonts" / name for name in fallback_names]
+        fallback = next((path for path in candidates if path.exists()), None)
+        if fallback is None:
             raise FileNotFoundError("Не найден системный шрифт с поддержкой кириллицы")
-        self._font_path = str(font_path)
-        with dpg.font_registry():
-            with dpg.font(self._font_path, 17) as font:
-                # DPG 2.3 builds ranges automatically, but explicit hints retain
-                # compatibility with earlier 2.x builds and document the contract.
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", DeprecationWarning)
-                    dpg.add_font_range_hint(dpg.mvFontRangeHint_Default)
-                    dpg.add_font_range_hint(dpg.mvFontRangeHint_Cyrillic)
-                    dpg.add_font_range(0x0400, 0x052F)
-            self._title_font = dpg.add_font(self._font_path, 25)
-        dpg.bind_font(font)
+        return fallback
 
-    def _build(self) -> None:
+    @staticmethod
+    def _add_font(path: Path, size: int) -> int | str:
+        # DPG 2.3 builds the complete cmap automatically.
+        return dpg.add_font(str(path), size)
+
+    def _load_font(self) -> None:
+        regular = self._font_candidate("Inter-Regular.ttf", "segoeui.ttf", "arial.ttf")
+        medium = self._font_candidate("Inter-Medium.ttf", "segoeui.ttf", "arial.ttf")
+        title = self._font_candidate(
+            "Inter-SemiBold.ttf", "seguisb.ttf", "segoeui.ttf", "arial.ttf"
+        )
+        mono = self._font_candidate(
+            "JetBrainsMono-Regular.ttf", "consola.ttf", "segoeui.ttf"
+        )
+        self._font_path = str(regular)
+        with dpg.font_registry():
+            # Instrument Serif is bundled for Latin display text but its cmap
+            # has no Cyrillic. Russian titles therefore use Inter SemiBold.
+            self._title_font = self._add_font(title, 28)
+            self._section_font = self._add_font(medium, 19)
+            self._body_font = self._add_font(regular, 15)
+            self._label_font = self._add_font(regular, 12)
+            self._mono_font = self._add_font(mono, 12)
+        dpg.bind_font(self._body_font)
+
+    def _bind_font(self, item: int | str, role: str) -> int | str:
+        fonts = {
+            "title": self._title_font,
+            "section": self._section_font,
+            "body": self._body_font,
+            "label": self._label_font,
+            "mono": self._mono_font,
+        }
+        dpg.bind_item_font(item, fonts[role])
+        return item
+
+    def _text(
+        self,
+        value: str,
+        *,
+        role: str = "body",
+        color: tuple[int, ...] = BONE,
+        parent: int | str = 0,
+        wrap: int = 0,
+        tag: int | str = 0,
+    ) -> int | str:
+        kwargs: dict[str, Any] = {"color": color, "parent": parent, "wrap": wrap}
+        if tag:
+            kwargs["tag"] = tag
+        return self._bind_font(dpg.add_text(value, **kwargs), role)
+
+    def _button(self, *, active: bool = False, **kwargs: Any) -> int | str:
+        item = dpg.add_button(**kwargs)
+        self._buttons.append(item)
+        if active:
+            self._active_buttons.add(item)
+        dpg.bind_item_theme(item, self._themes["button_active" if active else "button"])
+        self._bind_font(item, "body")
+        return item
+
+    def _refresh_button_hover_themes(self) -> None:
+        for candidate in dpg.get_all_items():
+            if (
+                candidate not in self._buttons
+                and dpg.get_item_type(candidate).endswith("::mvButton")
+            ):
+                self._buttons.append(candidate)
+                dpg.bind_item_theme(candidate, self._themes["button"])
+                self._bind_font(candidate, "body")
+        for item in tuple(self._buttons):
+            if not dpg.does_item_exist(item):
+                self._buttons.remove(item)
+                self._active_buttons.discard(item)
+                continue
+            theme = "button_active" if item in self._active_buttons else (
+                "button_hover" if dpg.is_item_hovered(item) else "button"
+            )
+            dpg.bind_item_theme(item, self._themes[theme])
+
+    def _build(
+        self,
+        *,
+        capture_page: str | None = None,
+        capture_path: Path | None = None,
+    ) -> None:
         dpg.create_context()
         try:
             self._load_font()
-            self._themes = {name: _build_theme(p) for name, p in PALETTE.items()}
-            dpg.bind_theme(self._themes["dark"])
-            with dpg.window(tag="main_win", label=APP_TITLE, no_close=True):
+            self._themes = _build_theme()
+            dpg.bind_theme(self._themes["global"])
+            with dpg.window(
+                tag="main_win",
+                label=APP_TITLE,
+                no_close=True,
+                no_title_bar=True,
+                no_scrollbar=True,
+            ):
                 with dpg.group(horizontal=True):
                     self._build_sidebar()
                     with dpg.child_window(
-                        tag="content", width=-1, height=-1, border=False
-                    ):
+                        tag="content", width=-1, height=-1, border=False,
+                        no_scrollbar=True,
+                    ) as content:
+                        dpg.bind_item_theme(content, self._themes["page"])
                         self._build_home()
                         self._build_wizard()
                         self._build_analysis()
@@ -255,24 +406,63 @@ class WinBoostApp:
                 height=WINDOW_HEIGHT,
                 min_width=980,
                 min_height=680,
+                resizable=capture_path is None,
             )
             dpg.setup_dearpygui()
             dpg.set_primary_window("main_win", True)
             dpg.show_viewport()
-            self._show("home")
-            self._append_log("info", f"Интерфейс запущен. Шрифт: {self._font_path}")
-            self._begin_worker("Создание первичного снимка", self._worker_baseline)
-            while dpg.is_dearpygui_running():
-                self._drain_events()
-                dpg.render_dearpygui_frame()
+            if capture_page == "review":
+                self._open_review(self._all_actions[:6], "capture", "home")
+            elif capture_page == "analysis":
+                self._show("analysis")
+                info = analyze_system()
+                self._render_analysis(info, format_analysis(info))
+            else:
+                self._show(capture_page or "home")
+            self._append_log("info", "Интерфейс запущен")
+            self._logger.info("Интерфейс запущен. Шрифт: %s", self._font_path)
+            if capture_path is None:
+                self._begin_worker("Создание первичного снимка", self._worker_baseline)
+                while dpg.is_dearpygui_running():
+                    self._drain_events()
+                    self._refresh_button_hover_themes()
+                    dpg.render_dearpygui_frame()
+            else:
+                for _ in range(60):
+                    self._refresh_button_hover_themes()
+                    dpg.render_dearpygui_frame()
+                    # Pump real-time native frames; an immediate tight loop can
+                    # finish before the Windows viewport animation has settled.
+                    time.sleep(0.02)
+                target_page = capture_page or "home"
+                self._show("wizard" if target_page != "wizard" else "home")
+                for _ in range(3):
+                    dpg.render_dearpygui_frame()
+                self._show(target_page)
+                for _ in range(12):
+                    self._refresh_button_hover_themes()
+                    dpg.render_dearpygui_frame()
+                    time.sleep(0.02)
+                dpg.output_frame_buffer(str(capture_path))
+                for _ in range(60):
+                    dpg.render_dearpygui_frame()
+                time.sleep(0.25)
         finally:
             dpg.destroy_context()
 
     def _build_sidebar(self) -> None:
-        with dpg.child_window(tag="sidebar", width=230, height=-1, border=False):
-            dpg.add_text("W I N B O O S T", color=ACCENT)
-            dpg.add_text("SYSTEM OPTIMIZER", color=PALETTE["dark"]["dim"])
-            dpg.add_separator()
+        with dpg.child_window(tag="sidebar", width=238, height=-1, border=True) as sidebar:
+            dpg.bind_item_theme(sidebar, self._themes["sidebar"])
+            with dpg.group(horizontal=True):
+                with dpg.drawlist(width=26, height=26):
+                    dpg.draw_polyline(
+                        ((4, 7), (8.5, 19), (12, 4), (15.5, 19), (20, 7)),
+                        color=WHITE,
+                        thickness=2,
+                    )
+                self._text("WinBoost", role="section", color=WHITE)
+            self._text("СИСТЕМНЫЙ ПОМОЩНИК", role="mono", color=MUTED)
+            dpg.add_spacer(height=6)
             for label, page in (
                 ("Главная", "home"),
                 ("Мастер", "wizard"),
@@ -283,27 +473,36 @@ class WinBoostApp:
                 ("Лог", "log"),
             ):
                 self._nav_btn(label, page)
-            dpg.add_spacer(height=14)
+            dpg.add_spacer(height=12)
             dpg.add_separator()
-            dpg.add_text("Тема")
-            dpg.add_combo(
-                ("Тёмная", "Светлая"),
-                default_value="Тёмная",
-                width=-1,
-                callback=self._switch_theme,
+            self._text("СОСТОЯНИЕ", role="mono", color=MUTED)
+            self._text("[ OK ]  СИСТЕМА ГОТОВА", role="mono", color=GREEN)
+            self._text(
+                "Операций пока нет",
+                role="label",
+                color=MUTED,
+                tag="status_text",
+                wrap=190,
             )
-            dpg.add_spacer(height=10)
-            dpg.add_text("ГОТОВО", tag="status_text", color=GREEN, wrap=205)
 
     def _nav_btn(self, label: str, page: str) -> None:
-        dpg.add_button(
-            label=label,
-            callback=self._navigate,
-            user_data=page,
-            width=-1,
-            height=38,
-            tag=f"nav_{page}",
-        )
+        with dpg.group(horizontal=True):
+            with dpg.drawlist(width=5, height=38):
+                indicator = dpg.draw_line(
+                    (2, 4),
+                    (2, 34),
+                    color=HAIRLINE,
+                    thickness=2,
+                )
+            self._nav_indicators[page] = indicator
+            self._button(
+                label=label,
+                callback=self._navigate,
+                user_data=page,
+                width=174,
+                height=38,
+                tag=f"nav_{page}",
+            )
 
     def _navigate(self, sender: Any, app_data: Any, user_data: str) -> None:
         self._show(user_data)
@@ -318,19 +517,30 @@ class WinBoostApp:
             tag = f"page_{name}"
             if dpg.does_item_exist(tag):
                 dpg.configure_item(tag, show=name == page)
-
-    def _switch_theme(self, sender: Any, app_data: str, user_data: Any) -> None:
-        self._theme_name = "light" if app_data == "Светлая" else "dark"
-        dpg.bind_theme(self._themes[self._theme_name])
+        active_nav = page if page in PAGE_NAMES else self._review_source
+        for name, indicator in self._nav_indicators.items():
+            dpg.configure_item(indicator, color=WHITE if name == active_nav else HAIRLINE)
+            button = f"nav_{name}"
+            if dpg.does_item_exist(button):
+                if name == active_nav:
+                    self._active_buttons.add(button)
+                else:
+                    self._active_buttons.discard(button)
 
     def _page(self, tag: str) -> None:
-        dpg.add_child_window(tag=tag, width=-1, height=-1, border=False, show=False)
+        page = dpg.add_child_window(
+            tag=tag,
+            width=-1,
+            height=-1,
+            border=False,
+            show=False,
+        )
+        dpg.bind_item_theme(page, self._themes["page"])
 
-    def _heading(self, title: str, subtitle: str, color: tuple[int, ...] = ACCENT) -> None:
-        title_item = dpg.add_text(title, color=color)
-        dpg.bind_item_font(title_item, self._title_font)
-        dpg.add_text(subtitle, wrap=850)
-        dpg.add_separator()
+    def _heading(self, title: str, subtitle: str, color: tuple[int, ...] = WHITE) -> None:
+        self._text(title, role="title", color=color)
+        self._text(subtitle, role="body", color=MUTED, wrap=850)
+        dpg.add_spacer(height=2)
 
     def _build_home(self) -> None:
         self._page("page_home")
@@ -344,60 +554,72 @@ class WinBoostApp:
                 if is_admin()
                 else "Права администратора: не получены"
             )
-            dpg.add_text(admin_text, color=GREEN if is_admin() else RED)
-            dpg.add_spacer(height=18)
+            with dpg.child_window(height=54, border=True, no_scrollbar=True) as status_card:
+                dpg.bind_item_theme(status_card, self._themes["card"])
+                with dpg.group(horizontal=True):
+                    self._text("[ ADMIN ]", role="mono", color=GREEN if is_admin() else RED)
+                    self._text(admin_text, color=BONE)
+            self._text("БЫСТРЫЕ ДЕЙСТВИЯ", role="mono", color=MUTED)
             with dpg.group(horizontal=True):
                 self._home_card(
+                    "01",
                     "Мастер",
                     "Ответьте на два вопроса — мы соберём подходящий набор.",
                     "Открыть",
                     self._open_page_callback,
                     "wizard",
-                    ACCENT2,
                 )
                 self._home_card(
+                    "02",
                     "Анализ",
                     "Проверьте систему и получите подробный цветной отчёт.",
                     "Запустить",
                     self._open_page_callback,
                     "analysis",
-                    ACCENT,
                 )
                 self._home_card(
+                    "03",
                     "Быстрая оптимизация",
-                    "Только действия с синим уровнем риска — сначала проверка.",
+                    "Только безопасные действия — сначала проверка.",
                     "Проверить",
                     self._quick_optimize,
                     None,
-                    GREEN,
                 )
                 self._home_card(
+                    "04",
                     "Бэкапы",
                     "Просмотрите снимки и восстановите выбранное состояние.",
                     "Открыть",
                     self._open_page_callback,
                     "backups",
-                    YELLOW,
                 )
+            self._text("ПОСЛЕДНЕЕ СОБЫТИЕ", role="mono", color=MUTED)
+            self._text(
+                "Событий пока нет",
+                role="mono",
+                color=MUTED,
+                tag="home_last_event",
+                wrap=850,
+            )
 
     def _home_card(
         self,
+        number: str,
         title: str,
         desc: str,
         button: str,
         callback: Callable[..., None],
         user_data: Any,
-        color: tuple[int, ...],
     ) -> None:
-        with dpg.child_window(width=213, height=235):
-            dpg.add_text(title, color=color, wrap=190)
-            dpg.add_spacer(height=8)
-            dpg.add_text(desc, wrap=190)
-            dpg.add_spacer(height=12)
-            dpg.add_button(
+        with dpg.child_window(width=211, height=180, border=True, no_scrollbar=True) as card:
+            dpg.bind_item_theme(card, self._themes["card"])
+            self._text(number, role="mono", color=MUTED)
+            self._text(title, role="section", color=WHITE, wrap=184)
+            self._text(desc, role="label", color=MUTED, wrap=184)
+            self._button(
                 label=button,
                 width=-1,
-                height=38,
+                height=34,
                 callback=callback,
                 user_data=user_data,
             )
@@ -413,27 +635,26 @@ class WinBoostApp:
             self._heading(
                 "Мастер оптимизации",
                 "Ответьте на вопросы. Перед запуском вы сможете исключить любое действие.",
-                ACCENT2,
             )
-            dpg.add_spacer(height=8)
-            with dpg.child_window(height=145):
-                dpg.add_text("Для чего вы чаще всего используете ПК?")
+            with dpg.child_window(height=120, border=True, no_scrollbar=True) as usage_card:
+                dpg.bind_item_theme(usage_card, self._themes["card"])
+                self._text("Для чего вы чаще всего используете ПК?", role="section", color=WHITE)
                 dpg.add_combo(
                     ("Игры", "Работа", "Сёрфинг", "Создание контента"),
                     default_value="Игры",
                     tag="wizard_usage",
                     width=420,
                 )
-            with dpg.child_window(height=145):
-                dpg.add_text("Готовы к агрессивным настройкам?")
+            with dpg.child_window(height=150, border=True, no_scrollbar=True) as risk_card:
+                dpg.bind_item_theme(risk_card, self._themes["card"])
+                self._text("Готовы к агрессивным настройкам?", role="section", color=WHITE)
                 dpg.add_radio_button(
                     ("Нет, только безопасный режим", "Да, максимум производительности"),
                     default_value="Нет, только безопасный режим",
                     tag="wizard_risk",
                 )
-                dpg.add_text("Безопасный режим включает только синий уровень риска.", color=BLUE)
-            dpg.add_spacer(height=10)
-            dpg.add_button(
+                self._text("Безопасный режим включает только безопасные действия.", role="label", color=GREEN)
+            self._button(
                 label="Собрать рекомендации",
                 callback=self._prepare_wizard,
                 width=300,
@@ -466,24 +687,29 @@ class WinBoostApp:
                 "Анализ системы",
                 "Аппаратная часть, службы, приватность, диски, сеть и оценка оптимизации.",
             )
-            dpg.add_progress_bar(tag="analysis_progress", default_value=0.0, width=-1)
-            dpg.add_text("Нажмите «Начать анализ».", tag="analysis_stage", wrap=850)
-            dpg.add_button(
+            dpg.add_progress_bar(
+                tag="analysis_progress",
+                default_value=0.0,
+                width=-1,
+                show=False,
+            )
+            self._text("Нажмите «Начать анализ».", color=MUTED, tag="analysis_stage", wrap=850)
+            self._button(
                 label="Начать глубокий анализ",
                 tag="analysis_start",
                 callback=self._start_analysis,
                 width=280,
                 height=45,
             )
-            dpg.add_separator()
-            with dpg.child_window(tag="analysis_results", height=-1):
-                dpg.add_text("Результаты появятся здесь.")
+            with dpg.child_window(tag="analysis_results", height=-1, border=False):
+                self._text("Результаты появятся здесь.", color=MUTED, parent="analysis_results")
 
     def _start_analysis(self, sender: Any, app_data: Any, user_data: Any) -> None:
         if not self._begin_worker("Анализ системы", self._worker_analysis):
             return
         dpg.configure_item("analysis_start", enabled=False)
         dpg.set_value("analysis_progress", 0.0)
+        dpg.show_item("analysis_progress")
         dpg.set_value("analysis_stage", "Подготовка анализа...")
 
     def _build_expert(self) -> None:
@@ -491,26 +717,48 @@ class WinBoostApp:
         with dpg.group(parent="page_expert"):
             self._heading(
                 "Экспертный режим",
-                "Все 10 категорий и 56 действий. Цвет показывает уровень риска.",
+                "Все 10 категорий и 55 действий. Цвет показывает уровень риска.",
             )
-            with dpg.child_window(height=-88):
+            # Reserve the complete fixed bottom control panel instead of letting
+            # the scrolling catalog consume the page's remaining height.
+            expert_bottom_panel_height = 108
+            with dpg.child_window(height=-expert_bottom_panel_height, border=False):
                 for category_index, category in enumerate(self._categories):
                     with dpg.collapsing_header(
-                        label=f"{category['title']} — {category['desc']}",
+                        label=f"{category['title']}  ·  {len(category['actions'])} действий",
                         default_open=category_index == 0,
                     ):
+                        self._text(category["desc"], role="label", color=MUTED, wrap=820)
                         for action_index, action in enumerate(category["actions"]):
                             tag = f"expert_{category_index}_{action_index}"
-                            with dpg.group(horizontal=True):
-                                dpg.add_text(
-                                    RISK_LABELS[action["risk"]],
-                                    color=RISK_COLORS[action["risk"]],
-                                )
-                                dpg.add_checkbox(label=action["name"], tag=tag)
-                            dpg.add_text(action["desc"], wrap=790)
+                            with dpg.child_window(height=58, border=True, no_scrollbar=True) as row:
+                                dpg.bind_item_theme(row, self._themes["row"])
+                                with dpg.table(
+                                    header_row=False,
+                                    policy=dpg.mvTable_SizingStretchProp,
+                                    borders_innerV=False,
+                                    borders_outerV=False,
+                                ):
+                                    dpg.add_table_column(width_fixed=True, init_width_or_weight=30)
+                                    dpg.add_table_column(width_stretch=True)
+                                    dpg.add_table_column(width_fixed=True, init_width_or_weight=125)
+                                    with dpg.table_row():
+                                        dpg.add_checkbox(tag=tag)
+                                        self._text(
+                                            f"{action['name']}  —  {action['desc']}",
+                                            role="label",
+                                            color=BONE,
+                                            wrap=620,
+                                        )
+                                        self._text(
+                                            RISK_LABELS[action["risk"]],
+                                            role="mono",
+                                            color=RISK_COLORS[action["risk"]],
+                                        )
                             self._expert_checks.append((tag, action))
-                        dpg.add_spacer(height=6)
-            dpg.add_button(
+                        dpg.add_spacer(height=4)
+            dpg.add_spacer(height=14)
+            self._button(
                 label="Проверить выбранные",
                 callback=self._prepare_expert,
                 width=300,
@@ -532,15 +780,15 @@ class WinBoostApp:
                 "Критические системные элементы защищены от отключения.",
             )
             with dpg.group(horizontal=True):
-                dpg.add_button(
+                self._button(
                     label="Сканировать",
                     callback=self._refresh_startup,
                     width=180,
                     height=40,
                 )
-                dpg.add_text("Список ещё не загружен", tag="startup_status")
+                self._text("Список ещё не загружен", color=MUTED, tag="startup_status")
             with dpg.child_window(tag="startup_table_container", height=-1):
-                dpg.add_text("Нажмите «Сканировать».")
+                self._text("Нажмите «Сканировать».", color=MUTED)
 
     def _refresh_startup(self, sender: Any = None, app_data: Any = None, user_data: Any = None) -> None:
         if self._begin_worker("Сканирование автозагрузки", self._worker_scan_startup):
@@ -555,7 +803,7 @@ class WinBoostApp:
             if name not in active_names
         ]
         if not self._startup_items and not disabled_items:
-            dpg.add_text("Элементы автозагрузки не найдены.", parent="startup_table_container")
+            self._text("Элементы автозагрузки не найдены.", color=MUTED, parent="startup_table_container")
             return
         with dpg.table(
             parent="startup_table_container",
@@ -575,17 +823,17 @@ class WinBoostApp:
             dpg.add_table_column(label="Действия", init_width_or_weight=1.2)
             for index, item in enumerate(self._startup_items):
                 with dpg.table_row():
-                    dpg.add_text(item["name"], wrap=180)
-                    dpg.add_text(item["value"], wrap=300)
-                    dpg.add_text(item["location"], wrap=140)
+                    self._text(item["name"], wrap=180)
+                    self._text(item["value"], role="mono", color=MUTED, wrap=300)
+                    self._text(item["location"], role="mono", color=MUTED, wrap=140)
                     if item["critical"]:
-                        dpg.add_text("Критический", color=RED)
+                        self._text("Критический", role="mono", color=RED)
                     elif item["safe_to_disable"]:
-                        dpg.add_text("Можно отключить", color=GREEN)
+                        self._text("Можно отключить", role="mono", color=GREEN)
                     else:
-                        dpg.add_text("Проверьте", color=YELLOW)
+                        self._text("Проверьте", role="mono", color=YELLOW)
                     with dpg.group(horizontal=True):
-                        dpg.add_button(
+                        self._button(
                             label="Отключить",
                             enabled=not item["critical"],
                             callback=self._startup_disable,
@@ -594,11 +842,11 @@ class WinBoostApp:
                         )
             for item in disabled_items:
                 with dpg.table_row():
-                    dpg.add_text(item["name"], wrap=180)
-                    dpg.add_text(item["value"], wrap=300)
-                    dpg.add_text(item["location"], wrap=140)
-                    dpg.add_text("Отключён", color=YELLOW)
-                    dpg.add_button(
+                    self._text(item["name"], wrap=180)
+                    self._text(item["value"], role="mono", color=MUTED, wrap=300)
+                    self._text(item["location"], role="mono", color=MUTED, wrap=140)
+                    self._text("Отключён", role="mono", color=YELLOW)
+                    self._button(
                         label="Вернуть",
                         callback=self._startup_restore,
                         user_data=item["name"],
@@ -625,21 +873,20 @@ class WinBoostApp:
             self._heading(
                 "Бэкапы",
                 "Baseline создаётся один раз. Для каждого применения сохраняется отдельный снимок.",
-                ACCENT2,
             )
             with dpg.group(horizontal=True):
-                dpg.add_button(
+                self._button(
                     label="Обновить",
                     callback=self._refresh_backups,
                     width=160,
                     height=38,
                 )
-                dpg.add_text("Список ещё не загружен", tag="backups_status")
+                self._text("Список ещё не загружен", color=MUTED, tag="backups_status")
             with dpg.child_window(tag="backups_table_container", height=330):
-                dpg.add_text("Загрузка...")
-            dpg.add_text("Результат восстановления", color=ACCENT2)
+                self._text("Загрузка...", color=MUTED)
+            self._text("Результат восстановления", role="section", color=WHITE)
             with dpg.child_window(tag="backup_restore_details", height=-1):
-                dpg.add_text("Восстановление ещё не запускалось.")
+                self._text("Восстановление ещё не запускалось.", color=MUTED)
 
     def _refresh_backups(self, sender: Any = None, app_data: Any = None, user_data: Any = None) -> None:
         if self._begin_worker("Чтение списка бэкапов", self._worker_list_backups):
@@ -648,7 +895,7 @@ class WinBoostApp:
     def _render_backups_table(self) -> None:
         dpg.delete_item("backups_table_container", children_only=True)
         if not self._backups:
-            dpg.add_text("Бэкапы не найдены.", parent="backups_table_container")
+            self._text("Бэкапы не найдены.", color=MUTED, parent="backups_table_container")
             return
         with dpg.table(
             parent="backups_table_container",
@@ -667,11 +914,11 @@ class WinBoostApp:
             for index, backup in enumerate(self._backups):
                 baseline = backup.get("kind") == "baseline" or Path(backup["file"]).name == "baseline.json"
                 with dpg.table_row():
-                    dpg.add_text(backup.get("timestamp") or "—")
-                    dpg.add_text(backup.get("label") or "Без метки")
-                    dpg.add_text("BASELINE" if baseline else backup.get("kind", "change"), color=GREEN if baseline else ACCENT)
-                    dpg.add_text(str(backup.get("entries_count", 0)))
-                    dpg.add_button(
+                    self._text(backup.get("timestamp") or "—", role="mono", color=MUTED)
+                    self._text(backup.get("label") or "Без метки")
+                    self._text("BASELINE" if baseline else backup.get("kind", "change"), role="mono", color=GREEN if baseline else MUTED)
+                    self._text(str(backup.get("entries_count", 0)), role="mono")
+                    self._button(
                         label="Восстановить",
                         callback=self._restore_selected_backup,
                         user_data=index,
@@ -692,29 +939,29 @@ class WinBoostApp:
             f"Реестр: {result['registry']}  |  Службы: {result['services']}  |  "
             f"Задачи: {result['tasks']}  |  Питание: {result['power']}  |  DNS: {result['dns']}"
         )
-        dpg.add_text(summary, parent="backup_restore_details", color=GREEN, wrap=820)
+        self._text(summary, parent="backup_restore_details", color=GREEN, wrap=820)
         skipped = result.get("skipped", [])
         if skipped:
-            dpg.add_text(
+            self._text(
                 f"Пропущено: {len(skipped)}",
                 parent="backup_restore_details",
                 color=YELLOW,
             )
             for item in skipped:
-                dpg.add_text(
+                self._text(
                     f"— {item}",
                     parent="backup_restore_details",
                     color=YELLOW,
                     wrap=820,
                 )
         else:
-            dpg.add_text("Пропущенных элементов нет.", parent="backup_restore_details")
+            self._text("Пропущенных элементов нет.", color=MUTED, parent="backup_restore_details")
 
     def _build_log(self) -> None:
         self._page("page_log")
         with dpg.group(parent="page_log"):
             self._heading("Лог", "Фактический ход анализа, применения и восстановления.")
-            dpg.add_button(label="Очистить", callback=self._clear_log, width=140)
+            self._button(label="Очистить", callback=self._clear_log, width=140)
             with dpg.child_window(tag="log_lines", height=-1):
                 pass
 
@@ -722,6 +969,9 @@ class WinBoostApp:
         self._log_lines.clear()
         self._log_items.clear()
         dpg.delete_item("log_lines", children_only=True)
+        if dpg.does_item_exist("home_last_event"):
+            dpg.set_value("home_last_event", "Событий пока нет")
+            dpg.configure_item("home_last_event", color=MUTED)
 
     def _append_log(self, level: str, message: str) -> None:
         timestamp = dt.datetime.now().strftime("%H:%M:%S")
@@ -737,12 +987,24 @@ class WinBoostApp:
                 if dpg.does_item_exist(old_item):
                     dpg.delete_item(old_item)
         if dpg.does_item_exist("log_lines"):
-            color = {"success": GREEN, "error": RED, "info": PALETTE["dark"]["dim"]}.get(level, BLUE)
-            item = dpg.add_text(
-                f"{timestamp}  {message}", parent="log_lines", color=color, wrap=850
+            color = {"success": GREEN, "error": RED, "info": LOG_TECHNICAL}.get(
+                level, LOG_TECHNICAL
+            )
+            item = self._text(
+                f"{timestamp}  {message}",
+                role="mono",
+                parent="log_lines",
+                color=color,
+                wrap=850,
             )
             self._log_items.append(item)
             self._scroll_log_pending = True
+        if dpg.does_item_exist("home_last_event"):
+            dpg.set_value("home_last_event", f"[{timestamp}]  {message}")
+            dpg.configure_item(
+                "home_last_event",
+                color={"success": GREEN, "error": RED}.get(level, MUTED),
+            )
 
     def _build_review(self) -> None:
         self._page("page_review")
@@ -750,37 +1012,94 @@ class WinBoostApp:
             self._heading(
                 "Проверка перед применением",
                 "Оставьте только нужные пункты. Цвет — уровень риска; изменения ещё не начались.",
-                ACCENT2,
             )
-            dpg.add_text("Выбранные действия", color=ACCENT)
-            with dpg.child_window(tag="review_regular", height=185):
-                dpg.add_text("Список пуст.")
-            dpg.add_text("Необратимые действия", color=RED)
-            dpg.add_text(
-                "Внимание: автоматический откат этих действий невозможен.",
-                color=RED,
-                wrap=850,
-            )
-            with dpg.child_window(tag="review_irreversible", height=105):
-                dpg.add_text("Необратимых действий нет.")
-            dpg.add_text("Что попадёт в бэкап", color=ACCENT2)
-            dpg.add_text("—", tag="review_summary", wrap=850)
-            dpg.add_text("", tag="review_status", wrap=850)
-            with dpg.group(horizontal=True):
-                dpg.add_button(
-                    label="Применить",
-                    tag="review_apply",
-                    callback=self._apply_review,
-                    width=210,
-                    height=46,
+            self._text("ВЫБРАННЫЕ ДЕЙСТВИЯ", role="mono", color=MUTED)
+            with dpg.child_window(
+                tag="review_regular", height=70, border=False
+            ) as regular_list:
+                dpg.bind_item_theme(regular_list, self._themes["list"])
+                self._text("Список пуст.", color=MUTED)
+            with dpg.group(tag="review_irreversible_section", show=False):
+                self._text("НЕОБРАТИМЫЕ ДЕЙСТВИЯ", role="mono", color=RED)
+                self._text(
+                    "Автоматический откат этих действий невозможен.",
+                    role="label",
+                    color=MUTED,
+                    wrap=850,
                 )
-                dpg.add_button(
+                with dpg.child_window(
+                    tag="review_irreversible", height=60, border=False
+                ) as irreversible_list:
+                    dpg.bind_item_theme(irreversible_list, self._themes["list"])
+                    self._text("Необратимых действий нет.", color=MUTED)
+            with dpg.child_window(height=58, border=True, no_scrollbar=True) as summary_card:
+                dpg.bind_item_theme(summary_card, self._themes["card"])
+                with dpg.group(horizontal=True):
+                    self._text("БЭКАП", role="mono", color=MUTED)
+                    self._text("—", tag="review_summary", wrap=720)
+            self._text("", role="label", color=MUTED, tag="review_status", wrap=850)
+            with dpg.group(horizontal=True):
+                self._button(
                     label="Отмена",
                     tag="review_cancel",
                     callback=self._cancel_review,
                     width=160,
-                    height=46,
+                    height=42,
                 )
+                self._button(
+                    label="Применить",
+                    tag="review_apply",
+                    callback=self._apply_review,
+                    width=210,
+                    height=42,
+                    active=True,
+                )
+
+    def _review_action_row(
+        self,
+        action: dict[str, Any],
+        index: int,
+        parent: int | str,
+    ) -> int | str:
+        height = self._review_row_height(action)
+        with dpg.child_window(
+            parent=parent,
+            height=height,
+            border=True,
+            no_scrollbar=True,
+        ) as row:
+            dpg.bind_item_theme(row, self._themes["row"])
+            with dpg.table(
+                header_row=False,
+                policy=dpg.mvTable_SizingStretchProp,
+                borders_innerV=False,
+                borders_outerV=False,
+            ):
+                dpg.add_table_column(width_fixed=True, init_width_or_weight=30)
+                dpg.add_table_column(width_stretch=True)
+                dpg.add_table_column(width_fixed=True, init_width_or_weight=130)
+                with dpg.table_row():
+                    check = dpg.add_checkbox(
+                        default_value=True,
+                        callback=self._review_toggle,
+                        user_data=index,
+                    )
+                    self._text(
+                        f"{action['name']}  —  {action['desc']}",
+                        role="label",
+                        color=BONE,
+                        wrap=620,
+                    )
+                    self._text(
+                        RISK_LABELS[action["risk"]],
+                        role="mono",
+                        color=RISK_COLORS[action["risk"]],
+                    )
+        return check
+
+    @staticmethod
+    def _review_row_height(action: dict[str, Any]) -> int:
+        return 56
 
     def _open_review(self, actions: list[dict[str, Any]], label: str, source: str) -> None:
         if not actions:
@@ -794,29 +1113,26 @@ class WinBoostApp:
         dpg.delete_item("review_irreversible", children_only=True)
         regular_count = 0
         irreversible_count = 0
+        regular_height = 0
+        irreversible_height = 0
         for index, action in enumerate(actions):
             parent = "review_irreversible" if action["irreversible"] else "review_regular"
             if action["irreversible"]:
                 irreversible_count += 1
+                irreversible_height += self._review_row_height(action) + 4
             else:
                 regular_count += 1
-            with dpg.group(horizontal=True, parent=parent):
-                dpg.add_text(
-                    RISK_LABELS[action["risk"]],
-                    color=RISK_COLORS[action["risk"]],
-                )
-                check = dpg.add_checkbox(
-                    label=action["name"],
-                    default_value=True,
-                    callback=self._review_toggle,
-                    user_data=index,
-                )
-                self._review_checks.append(check)
-            dpg.add_text(action["desc"], parent=parent, wrap=790)
+                regular_height += self._review_row_height(action) + 4
+            self._review_checks.append(self._review_action_row(action, index, parent))
         if not regular_count:
-            dpg.add_text("Обычных действий нет.", parent="review_regular")
+            self._text("Обычных действий нет.", color=MUTED, parent="review_regular")
         if not irreversible_count:
-            dpg.add_text("Необратимых действий нет.", parent="review_irreversible")
+            self._text("Необратимых действий нет.", color=MUTED, parent="review_irreversible")
+        dpg.configure_item("review_regular", height=min(360, max(56, regular_height)))
+        dpg.configure_item(
+            "review_irreversible", height=min(176, max(56, irreversible_height))
+        )
+        dpg.configure_item("review_irreversible_section", show=bool(irreversible_count))
         dpg.set_value("review_status", "")
         dpg.configure_item("review_cancel", enabled=True)
         self._update_review_summary()
@@ -842,7 +1158,11 @@ class WinBoostApp:
             f"DNS: {'да' if effects['dns'] else 'нет'}  |  UWP: {len(effects['appx'])}"
         )
         dpg.set_value("review_summary", summary)
-        dpg.configure_item("review_apply", enabled=bool(selected) and not self._busy)
+        dpg.configure_item(
+            "review_apply",
+            enabled=bool(selected) and not self._busy,
+            label=f"Применить · {len(selected)}",
+        )
 
     def _cancel_review(self, sender: Any, app_data: Any, user_data: Any) -> None:
         if self._busy:
@@ -969,8 +1289,14 @@ class WinBoostApp:
             if kind == "log":
                 self._append_log(payload[0], payload[1])
             elif kind == "worker_idle":
+                worker_name = self._busy_name
                 self._busy = False
                 self._busy_name = ""
+                if (
+                    worker_name == "Анализ системы"
+                    and dpg.does_item_exist("analysis_progress")
+                ):
+                    dpg.hide_item("analysis_progress")
                 if dpg.does_item_exist("analysis_start"):
                     dpg.configure_item("analysis_start", enabled=True)
                 if dpg.does_item_exist("review_cancel"):
@@ -1037,27 +1363,115 @@ class WinBoostApp:
 
     def _render_analysis(self, info: dict[str, Any], lines: list[tuple[str, str]]) -> None:
         dpg.set_value("analysis_progress", 1.0)
+        dpg.hide_item("analysis_progress")
         dpg.set_value("analysis_stage", "Анализ завершён")
         dpg.delete_item("analysis_results", children_only=True)
         colors = {
-            "header": ACCENT,
+            "header": WHITE,
             "good": GREEN,
             "warn": YELLOW,
-            "info": PALETTE["dark"]["dim"],
-            "score": ACCENT2,
+            "info": MUTED,
+            "score": WHITE,
         }
+        sections: list[tuple[str, list[tuple[str, str]]]] = []
+        title = "Сводка"
+        rows: list[tuple[str, str]] = []
         for text, category in lines:
-            if not text:
-                dpg.add_separator(parent="analysis_results")
-            else:
-                dpg.add_text(
-                    text,
-                    parent="analysis_results",
-                    color=colors.get(category, PALETTE["dark"]["dim"]),
-                    wrap=820,
-                )
+            if category == "header":
+                if rows:
+                    sections.append((title, rows))
+                raw_title = text.strip("═ ").title()
+                title = {
+                    "Аппаратное Обеспечение": "Железо",
+                    "Диски": "Диски",
+                    "Службы": "Службы",
+                    "Приватность": "Приватность",
+                    "Производительность": "Производительность",
+                    "Сеть": "Сеть",
+                }.get(raw_title, raw_title)
+                rows = []
+            elif text:
+                rows.append((_display_text(text).strip(), category))
+        if rows:
+            sections.append((title, rows))
+
+        for section_title, section_rows in sections:
+            height = 50 + max(1, len(section_rows)) * 28
+            with dpg.child_window(
+                parent="analysis_results",
+                height=height,
+                border=True,
+                no_scrollbar=True,
+            ) as card:
+                dpg.bind_item_theme(card, self._themes["card"])
+                self._text(section_title, role="section", color=WHITE)
+                for text, category in section_rows:
+                    self._text(
+                        text,
+                        role="body",
+                        color=colors.get(category, MUTED),
+                        wrap=790,
+                    )
+
+
+def _capture_all(output_dir: Path) -> None:
+    """Capture every production page with DPG's framebuffer mechanism."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    script = Path(__file__).resolve()
+    environment = os.environ.copy()
+    environment["PYTHONUTF8"] = "1"
+    for page in (*PAGE_NAMES, "review"):
+        output_file = output_dir / f"{page}.png"
+        attempts: list[Path] = []
+        for attempt in range(2):
+            candidate = output_dir / f".{page}-{attempt}.png"
+            if candidate.exists():
+                candidate.unlink()
+            subprocess.run(
+                [sys.executable, str(script), "--capture-one", page, str(candidate)],
+                check=True,
+                env=environment,
+            )
+            if not candidate.exists() or candidate.stat().st_size == 0:
+                raise RuntimeError(f"Не удалось сохранить скриншот: {candidate}")
+            attempts.append(candidate)
+            # DPG 2.3/DirectX can keep the just-destroyed font atlas alive for
+            # a fraction of a second.  A second independent framebuffer also
+            # protects the final set from a partially uploaded font atlas.
+            time.sleep(0.35)
+        best = max(attempts, key=lambda path: path.stat().st_size)
+        if output_file.exists():
+            output_file.unlink()
+        best.replace(output_file)
+        for candidate in attempts:
+            if candidate.exists():
+                candidate.unlink()
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = sys.argv[1:] if argv is None else argv
+    if len(args) == 3 and args[0] == "--capture-one":
+        page, output = args[1:]
+        if page not in {*PAGE_NAMES, "review"}:
+            return 2
+        WinBoostApp()._build(
+            capture_page=page,
+            capture_path=Path(output).resolve(),
+        )
+        return 0
+    if len(args) == 2 and args[0] == "--capture-all":
+        _capture_all(Path(args[1]).resolve())
+        return 0
+    if args:
+        print(
+            "Использование: python WinBoostGUI.py [--capture-all ПАПКА]",
+            file=sys.stderr,
+        )
+        return 2
+    elevate()
+    WinBoostApp()._build()
+    return 0
 
 
 if __name__ == "__main__":
-    elevate()
-    WinBoostApp()._build()
+    raise SystemExit(main())

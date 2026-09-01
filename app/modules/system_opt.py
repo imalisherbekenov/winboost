@@ -121,18 +121,6 @@ def get_category(log_success, log_error, log_info):
         "desc": "Телеметрия, службы, электропитание и деблоат",
         "actions": [
             {
-                "name": "Отключить телеметрию",
-                "desc": "DiagTrack и сбор данных",
-                "run": lambda: disable_telemetry(log_success, log_error, log_info),
-                "icon": "🛡️",
-                "risk": "red",
-                "irreversible": False,
-                "effects": {
-                    "registry": [{"hive": winreg.HKEY_LOCAL_MACHINE, "path": r"SOFTWARE\Policies\Microsoft\Windows\DataCollection", "name": "AllowTelemetry"}],
-                    "services": ["DiagTrack", "dmwappushservice"],
-                },
-            },
-            {
                 "name": "Деблоат UWP",
                 "desc": "Удалить ~18 мусорных приложений",
                 "run": lambda: remove_bloatware(log_success, log_error, log_info),

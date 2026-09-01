@@ -124,7 +124,8 @@ def test_analyze_system_handles_unavailable_swap(monkeypatch):
     assert info["ram_total_gb"] == 16.0
     assert info["swap_total_gb"] is None
     pagefile_line = next(text for text, _ in analyzer.format_analysis(info) if "PageFile" in text)
-    assert "N/A" in pagefile_line
+    assert "PageFile: недоступно" in pagefile_line
+    assert "недоступно GB" not in pagefile_line
 
 
 def test_analyze_system_handles_unavailable_virtual_memory(monkeypatch):
@@ -137,7 +138,8 @@ def test_analyze_system_handles_unavailable_virtual_memory(monkeypatch):
     assert info["cpu_usage"] == 12.5
     assert info["ram_total_gb"] is None
     ram_line = next(text for text, _ in analyzer.format_analysis(info) if text.startswith("  RAM:"))
-    assert "N/A" in ram_line
+    assert "RAM:  недоступно" in ram_line
+    assert "недоступно GB" not in ram_line
 
 
 def test_analyze_system_handles_unavailable_network_counters(monkeypatch):
@@ -150,7 +152,8 @@ def test_analyze_system_handles_unavailable_network_counters(monkeypatch):
     assert info["ram_total_gb"] == 16.0
     assert info["net_sent_gb"] is None
     traffic_line = next(text for text, _ in analyzer.format_analysis(info) if "Трафик:" in text)
-    assert "N/A" in traffic_line
+    assert "↑недоступно / ↓недоступно" in traffic_line
+    assert "недоступно GB" not in traffic_line
 
 
 def test_cpu_usage_uses_reading_after_nonblocking_warmup(monkeypatch):

@@ -17,10 +17,11 @@ if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
 Write-Host "[3/3] Building WinBoost.exe ..." -ForegroundColor Yellow
 pyinstaller --onefile --noconsole --name WinBoost `
     --add-data "modules;modules" `
+    --add-data "assets;assets" `
     --collect-all dearpygui `
     --hidden-import psutil `
     --uac-admin `
-    --icon NONE `
+    --icon "..\docs\design\logo\WinBoost.ico" `
     WinBoostGUI.py
 
 if (Test-Path "dist/WinBoost.exe") {

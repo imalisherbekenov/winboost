@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('modules', 'modules')]
+datas = [('modules', 'modules'), ('assets', 'assets')]
 binaries = []
 hiddenimports = ['psutil']
 tmp_ret = collect_all('dearpygui')
@@ -43,5 +43,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     uac_admin=True,
-    icon='NONE',
+    icon=r'..\docs\design\logo\WinBoost.ico',
 )

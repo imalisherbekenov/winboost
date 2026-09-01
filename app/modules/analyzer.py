@@ -364,18 +364,22 @@ def format_analysis(info: dict) -> list[tuple[str, str]]:
     """
     lines = []
 
-    def display(value):
-        return "N/A" if value is None else value
+    def display(value, unit=""):
+        unavailable = value is None or str(value).strip() in {"", "N/A", "Н/Д", "unavailable"}
+        if unavailable:
+            return "недоступно"
+        separator = "" if unit == "%" else " "
+        return f"{value}{separator}{unit}" if unit else str(value)
 
     # Hardware
     lines.append(("═══ АППАРАТНОЕ ОБЕСПЕЧЕНИЕ ═══", "header"))
     lines.append((f"  CPU:  {info['cpu_name']}", "info"))
-    lines.append((f"        {display(info['cpu_cores'])} ядер / {display(info['cpu_threads'])} потоков, "
-                  f"{display(info['cpu_freq_mhz'])} MHz, загрузка: {display(info['cpu_usage'])}%", "info"))
+    lines.append((f"        {display(info['cpu_cores'], 'ядер')} / {display(info['cpu_threads'], 'потоков')}, "
+                  f"{display(info['cpu_freq_mhz'], 'MHz')}, загрузка: {display(info['cpu_usage'], '%')}", "info"))
     lines.append((f"  GPU:  {info['gpu_name']}", "info"))
     lines.append((f"        Драйвер: {info['gpu_driver']}, VRAM: {info['gpu_vram_fmt']}", "info"))
-    lines.append((f"  RAM:  {display(info['ram_total_gb'])} GB (использование: {display(info['ram_usage_pct'])}%)", "info"))
-    lines.append((f"        Частота: {info['ram_speed']} MHz, PageFile: {display(info['swap_total_gb'])} GB", "info"))
+    lines.append((f"  RAM:  {display(info['ram_total_gb'], 'GB')} (использование: {display(info['ram_usage_pct'], '%')})", "info"))
+    lines.append((f"        Частота: {display(info['ram_speed'], 'MHz')}, PageFile: {display(info['swap_total_gb'], 'GB')}", "info"))
     lines.append((f"  OS:   {info['os_name']}", "info"))
     lines.append((f"        Uptime: {display(info['uptime'])}, Процессов: {display(info['process_count'])}", "info"))
 
@@ -386,8 +390,8 @@ def format_analysis(info: dict) -> list[tuple[str, str]]:
         lines.append(("  Данные о дисках: unavailable", "info"))
     for d in info["disks"]:
         status = "info" if d["pct"] is None else ("warn" if d["pct"] > 85 else "good")
-        lines.append((f"  {d['mount']}  {display(d['used_gb'])}/{display(d['total_gb'])} GB "
-                      f"({display(d['pct'])}%)  [{d['fs']}]", status))
+        lines.append((f"  {d['mount']}  {display(d['used_gb'], 'GB')}/{display(d['total_gb'], 'GB')} "
+                      f"({display(d['pct'], '%')})  [{d['fs']}]", status))
 
     # Services
     lines.append(("", "info"))
@@ -435,6 +439,6 @@ def format_analysis(info: dict) -> list[tuple[str, str]]:
         lines.append(("  Сетевые адаптеры: unavailable", "info"))
     for adapter in info.get("net_adapters", []):
         lines.append((f"  {adapter['name']}: {adapter['speed']}", "info"))
-    lines.append((f"  Трафик: ↑{display(info['net_sent_gb'])} GB / ↓{display(info['net_recv_gb'])} GB", "info"))
+    lines.append((f"  Трафик: ↑{display(info['net_sent_gb'], 'GB')} / ↓{display(info['net_recv_gb'], 'GB')}", "info"))
 
     return lines

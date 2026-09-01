@@ -182,7 +182,7 @@ export default function Home() {
 
           <div className="page-shell hero-stats" aria-label="Возможности WinBoost">
             <div><strong>10</strong><span>модулей оптимизации</span></div>
-            <div><strong>56</strong><span>действий и твиков</span></div>
+            <div><strong>55</strong><span>действий и твиков</span></div>
             <div><strong>откат</strong><span>включён по умолчанию</span></div>
           </div>
         </section>
