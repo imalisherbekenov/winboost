@@ -33,7 +33,7 @@ from modules.startup import (
 )
 
 
-APP_TITLE = "WinBoost 3.0"
+APP_TITLE = "WinBoost 3.1"
 WINDOW_WIDTH = 1180
 WINDOW_HEIGHT = 800
 
