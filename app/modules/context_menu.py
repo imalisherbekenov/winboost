@@ -144,6 +144,6 @@ def get_category(log_success, log_error, log_info):
         "title": "🖱️ Контекстное меню",
         "desc": "Управление пунктами правой кнопки мыши",
         "actions": [
-            {"name": "Отчёт контекстного меню", "desc": "Сканирование без изменений", "run": lambda: get_context_menu_report(log_success, log_error, log_info), "icon": "📊", "risk": "blue", "irreversible": False, "effects": {}},
+            {"name": "Отчёт контекстного меню", "desc": "Сканирование без изменений", "run": lambda: get_context_menu_report(log_success, log_error, log_info), "icon": "chart", "risk": "blue", "irreversible": False, "effects": {}},
         ]
     }

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from icons import GLYPHS
 from modules import ALL_MODULES, cs2_opt
 from modules.backup import normalize_effects
 
@@ -19,6 +20,7 @@ def test_all_module_actions_follow_contract():
         for action in category["actions"]:
             assert required <= action.keys(), (module.__name__, action)
             assert action["risk"] in {"red", "yellow", "blue"}
+            assert action["icon"] in GLYPHS, (module.__name__, action["icon"])
             assert callable(action["run"])
             normalize_effects(action["effects"])
 

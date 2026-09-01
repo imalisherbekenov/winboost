@@ -77,7 +77,7 @@ def get_category(log_success, log_error, log_info):
             'name': 'Оптимизировать CS2 (Autoexec + Binds)',
             'desc': 'Создает киберспортивный autoexec.cfg и ставит высокий приоритет',
             'run': lambda: optimize_cs2(log_success, log_error, log_info),
-            'icon': '🔫',
+        'icon': 'gamepad',
             'risk': 'yellow',
             'irreversible': True,
             'effects': {'registry': [{

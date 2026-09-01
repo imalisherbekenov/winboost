@@ -77,7 +77,7 @@ def get_category(log_success, log_error, log_info):
                 "name": "Отключить авто-драйверы",
                 "desc": "Не обновлять драйверы через WU",
                 "run": lambda: disable_auto_drivers(log_success, log_error, log_info),
-                "icon": "💿",
+                "icon": "stop",
                 "risk": "yellow",
                 "irreversible": False,
                 "effects": {"registry": [
@@ -85,7 +85,7 @@ def get_category(log_success, log_error, log_info):
                     {"hive": winreg.HKEY_LOCAL_MACHINE, "path": r"SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching", "name": "SearchOrderConfig"},
                 ]},
             },
-            {"name": "Отключить задачи телеметрии", "desc": "Задачи Application Experience и CEIP", "run": lambda: disable_telemetry_tasks(log_success, log_error, log_info), "icon": "📊", "risk": "red", "irreversible": False, "effects": {"tasks": TELEMETRY_TASKS}},
-            {"name": "Пауза обновлений", "desc": "Приостановить до 2099 года", "run": lambda: pause_updates(log_success, log_error, log_info), "icon": "⏸️", "risk": "yellow", "irreversible": False, "effects": {"registry": [{"hive": winreg.HKEY_LOCAL_MACHINE, "path": r"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings", "name": "PauseUpdatesExpiryTime"}]}},
+            {"name": "Отключить задачи телеметрии", "desc": "Задачи Application Experience и CEIP", "run": lambda: disable_telemetry_tasks(log_success, log_error, log_info), "icon": "chart", "risk": "red", "irreversible": False, "effects": {"tasks": TELEMETRY_TASKS}},
+            {"name": "Пауза обновлений", "desc": "Приостановить до 2099 года", "run": lambda: pause_updates(log_success, log_error, log_info), "icon": "pause", "risk": "yellow", "irreversible": False, "effects": {"registry": [{"hive": winreg.HKEY_LOCAL_MACHINE, "path": r"SOFTWARE\Microsoft\WindowsUpdate\UX\Settings", "name": "PauseUpdatesExpiryTime"}]}},
         ]
     }

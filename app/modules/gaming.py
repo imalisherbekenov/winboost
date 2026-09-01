@@ -107,7 +107,7 @@ def get_category(log_success, log_error, log_info):
                 "name": "Отключить акселерацию мыши",
                 "desc": "Точный ввод без ускорения",
                 "run": lambda: disable_mouse_acceleration(log_success, log_error, log_info),
-                "icon": "🖱️",
+                "icon": "cursor",
                 "risk": "yellow",
                 "irreversible": False,
                 "effects": {"registry": [
@@ -119,7 +119,7 @@ def get_category(log_success, log_error, log_info):
                 "name": "Отключить Nagle",
                 "desc": "Снижение сетевой задержки",
                 "run": lambda: optimize_nagle(log_success, log_error, log_info),
-                "icon": "🌐",
+                "icon": "globe",
                 "risk": "yellow",
                 "irreversible": False,
                 "effects": {"registry": [{
@@ -133,7 +133,7 @@ def get_category(log_success, log_error, log_info):
                 "name": "Отключить Game Bar",
                 "desc": "Xbox Game Bar и оверлей",
                 "run": lambda: disable_game_bar(log_success, log_error, log_info),
-                "icon": "🎮",
+                "icon": "gamepad",
                 "risk": "yellow",
                 "irreversible": False,
                 "effects": {"registry": [
@@ -145,7 +145,7 @@ def get_category(log_success, log_error, log_info):
                 "name": "Включить Game Mode",
                 "desc": "Приоритет для игр",
                 "run": lambda: enable_game_mode(log_success, log_error, log_info),
-                "icon": "🚀",
+                "icon": "bolt",
                 "risk": "blue",
                 "irreversible": False,
                 "effects": {"registry": [

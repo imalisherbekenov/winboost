@@ -21,6 +21,7 @@ import dearpygui.dearpygui as dpg
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from modules import ALL_MODULES
+from icons import draw_glyph
 from modules.analyzer import analyze_system, format_analysis
 from modules.backup import capture, ensure_baseline, list_backups, merge_effects
 from modules.backup import restore as restore_backup
@@ -93,6 +94,19 @@ def _display_text(value: Any) -> str:
             or ord(char) in (0x200D, 0xFE0F)
         )
     ).strip()
+
+
+def plural(n: int, one: str, few: str, many: str) -> str:
+    """Return the Russian noun form matching *n*."""
+    remainder_100 = abs(n) % 100
+    if 11 <= remainder_100 <= 14:
+        return many
+    remainder_10 = abs(n) % 10
+    if remainder_10 == 1:
+        return one
+    if 2 <= remainder_10 <= 4:
+        return few
+    return many
 
 
 def is_admin() -> bool:
@@ -714,10 +728,16 @@ class WinBoostApp:
 
     def _build_expert(self) -> None:
         self._page("page_expert")
+        category_count = len(self._categories)
+        action_count = len(self._all_actions)
         with dpg.group(parent="page_expert"):
             self._heading(
                 "Экспертный режим",
-                "Все 10 категорий и 55 действий. Цвет показывает уровень риска.",
+                f"Все {category_count} "
+                f"{plural(category_count, 'категория', 'категории', 'категорий')} и "
+                f"{action_count} "
+                f"{plural(action_count, 'действие', 'действия', 'действий')}. "
+                "Цвет показывает уровень риска.",
             )
             # Reserve the complete fixed bottom control panel instead of letting
             # the scrolling catalog consume the page's remaining height.
@@ -725,7 +745,10 @@ class WinBoostApp:
             with dpg.child_window(height=-expert_bottom_panel_height, border=False):
                 for category_index, category in enumerate(self._categories):
                     with dpg.collapsing_header(
-                        label=f"{category['title']}  ·  {len(category['actions'])} действий",
+                        label=(
+                            f"{category['title']}  ·  {len(category['actions'])} "
+                            f"{plural(len(category['actions']), 'действие', 'действия', 'действий')}"
+                        ),
                         default_open=category_index == 0,
                     ):
                         self._text(category["desc"], role="label", color=MUTED, wrap=820)
@@ -740,10 +763,18 @@ class WinBoostApp:
                                     borders_outerV=False,
                                 ):
                                     dpg.add_table_column(width_fixed=True, init_width_or_weight=30)
+                                    dpg.add_table_column(width_fixed=True, init_width_or_weight=28)
                                     dpg.add_table_column(width_stretch=True)
                                     dpg.add_table_column(width_fixed=True, init_width_or_weight=125)
                                     with dpg.table_row():
                                         dpg.add_checkbox(tag=tag)
+                                        with dpg.drawlist(width=20, height=20) as glyph_parent:
+                                            draw_glyph(
+                                                action["icon"],
+                                                glyph_parent,
+                                                size=20,
+                                                color=RISK_COLORS[action["risk"]],
+                                            )
                                         self._text(
                                             f"{action['name']}  —  {action['desc']}",
                                             role="label",
@@ -1076,6 +1107,7 @@ class WinBoostApp:
                 borders_outerV=False,
             ):
                 dpg.add_table_column(width_fixed=True, init_width_or_weight=30)
+                dpg.add_table_column(width_fixed=True, init_width_or_weight=28)
                 dpg.add_table_column(width_stretch=True)
                 dpg.add_table_column(width_fixed=True, init_width_or_weight=130)
                 with dpg.table_row():
@@ -1084,6 +1116,13 @@ class WinBoostApp:
                         callback=self._review_toggle,
                         user_data=index,
                     )
+                    with dpg.drawlist(width=20, height=20) as glyph_parent:
+                        draw_glyph(
+                            action["icon"],
+                            glyph_parent,
+                            size=20,
+                            color=RISK_COLORS[action["risk"]],
+                        )
                     self._text(
                         f"{action['name']}  —  {action['desc']}",
                         role="label",

@@ -202,11 +202,11 @@ def get_category(log_success, log_error, log_info):
         "title": "🌐 Сеть",
         "desc": "DNS, TCP, MTU, QoS, энергосбережение NIC",
         "actions": [
-            {"name": "DNS → Cloudflare", "desc": "1.1.1.1 / 1.0.0.1", "run": lambda: set_dns_cloudflare(log_success, log_error, log_info), "icon": "☁️", "risk": "blue", "irreversible": False, "effects": {"dns": True}},
-            {"name": "DNS → Google", "desc": "8.8.8.8 / 8.8.4.4", "run": lambda: set_dns_google(log_success, log_error, log_info), "icon": "🔍", "risk": "blue", "irreversible": False, "effects": {"dns": True}},
-            {"name": "TCP Autotune", "desc": "RSS, timestamps, initialRTO", "run": lambda: optimize_tcp_autotune(log_success, log_error, log_info), "icon": "⚡", "risk": "yellow", "irreversible": False, "effects": {}},
-            {"name": "Оптимизация MTU", "desc": "Авто-определение лучшего MTU", "run": lambda: optimize_mtu(log_success, log_error, log_info), "icon": "📐", "risk": "yellow", "irreversible": False, "effects": {}},
-            {"name": "Отключить QoS throttle", "desc": "Снять 20% bandwidth limit", "run": lambda: disable_qos_throttle(log_success, log_error, log_info), "icon": "🚦", "risk": "blue", "irreversible": False, "effects": {"registry": [{"hive": winreg.HKEY_LOCAL_MACHINE, "path": r"SOFTWARE\Policies\Microsoft\Windows\Psched", "name": "NonBestEffortLimit"}]}},
-            {"name": "Отключить NIC Power Save", "desc": "Не усыплять адаптеры", "run": lambda: disable_nic_power_save(log_success, log_error, log_info), "icon": "🔋", "risk": "blue", "irreversible": False, "effects": {}},
+            {"name": "DNS → Cloudflare", "desc": "1.1.1.1 / 1.0.0.1", "run": lambda: set_dns_cloudflare(log_success, log_error, log_info), "icon": "cloud", "risk": "blue", "irreversible": False, "effects": {"dns": True}},
+            {"name": "DNS → Google", "desc": "8.8.8.8 / 8.8.4.4", "run": lambda: set_dns_google(log_success, log_error, log_info), "icon": "globe", "risk": "blue", "irreversible": False, "effects": {"dns": True}},
+            {"name": "TCP Autotune", "desc": "RSS, timestamps, initialRTO", "run": lambda: optimize_tcp_autotune(log_success, log_error, log_info), "icon": "globe", "risk": "yellow", "irreversible": False, "effects": {}},
+            {"name": "Оптимизация MTU", "desc": "Авто-определение лучшего MTU", "run": lambda: optimize_mtu(log_success, log_error, log_info), "icon": "gauge", "risk": "yellow", "irreversible": False, "effects": {}},
+            {"name": "Отключить QoS throttle", "desc": "Снять 20% bandwidth limit", "run": lambda: disable_qos_throttle(log_success, log_error, log_info), "icon": "gauge", "risk": "blue", "irreversible": False, "effects": {"registry": [{"hive": winreg.HKEY_LOCAL_MACHINE, "path": r"SOFTWARE\Policies\Microsoft\Windows\Psched", "name": "NonBestEffortLimit"}]}},
+            {"name": "Отключить NIC Power Save", "desc": "Не усыплять адаптеры", "run": lambda: disable_nic_power_save(log_success, log_error, log_info), "icon": "battery", "risk": "blue", "irreversible": False, "effects": {}},
         ],
     }

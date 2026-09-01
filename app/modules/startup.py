@@ -216,12 +216,12 @@ def get_category(log_success, log_error, log_info):
         "title": "🚀 Автозагрузка",
         "desc": "Сканирование и отключение лишних программ",
         "actions": [
-            {"name": "Отчёт автозагрузки", "desc": "Сканирование без изменений", "run": lambda: get_startup_report(log_success, log_error, log_info), "icon": "📊", "risk": "blue", "irreversible": False, "effects": {}},
+            {"name": "Отчёт автозагрузки", "desc": "Сканирование без изменений", "run": lambda: get_startup_report(log_success, log_error, log_info), "icon": "chart", "risk": "blue", "irreversible": False, "effects": {}},
             {
                 "name": "Отключить безопасные",
                 "desc": "Удалить неважные из автозагрузки",
                 "run": lambda: disable_all_safe(log_success, log_error, log_info),
-                "icon": "🧹",
+                "icon": "stop",
                 "risk": "yellow",
                 "irreversible": False,
                 "effects": {"registry": [
