@@ -1,11 +1,12 @@
 {
   "name": "winboost-site",
-  "version": "1.0.0",
+  "version": "4.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "node scripts/serve.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "next": "15.5.9",

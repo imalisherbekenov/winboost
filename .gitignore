@@ -234,3 +234,9 @@ out/
 .DS_Store
 Thumbs.db
 .omc/
+
+# Public download shipped with the WinBoost 4.0 website
+!site/public/downloads/
+site/public/downloads/*
+!site/public/downloads/WinBoost-4.0.exe
+!site/public/downloads/SHA256.txt

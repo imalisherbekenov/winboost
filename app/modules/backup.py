@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from modules.winshell import run_cmd, run_ps, run_ps_json
+from modules.operations import write_report
 
 
 logger = logging.getLogger("winboost")
@@ -93,7 +94,7 @@ def read_current_value(hive: int, path: str, name: str) -> dict:
         if encoding:
             result["value_encoding"] = encoding
         return result
-    except OSError:
+    except FileNotFoundError:
         return {"value": None, "type": None, "exists": False}
 
 
@@ -109,7 +110,7 @@ def _enum_registry_values(hive: int, path: str) -> list[dict]:
                     break
                 entries.append({"hive": hive, "path": path, "name": name})
                 index += 1
-    except OSError:
+    except FileNotFoundError:
         pass
     return entries
 
@@ -134,7 +135,7 @@ def _expand_registry_targets(targets: list[dict]) -> list[dict]:
                             for name in names
                         )
                         index += 1
-            except OSError:
+            except FileNotFoundError:
                 pass
         elif dynamic == "registry_values":
             expanded.extend(_enum_registry_values(target["hive"], target["path"]))
@@ -173,9 +174,11 @@ def _capture_services(names: list[str]) -> list[dict]:
         safe_name = name.replace("'", "''")
         script = (
             f'Get-CimInstance Win32_Service -Filter "Name=\'{safe_name}\'" '
-            "-ErrorAction SilentlyContinue | Select-Object Name,StartMode,State"
+            "-ErrorAction Stop | Select-Object Name,StartMode,State"
         )
-        ok, rows, _ = run_ps_json(script)
+        ok, rows, error = run_ps_json(script)
+        if not ok:
+            raise OSError(f"Не удалось сохранить состояние службы {name}: {error}")
         if ok:
             for row in rows:
                 services.append(
@@ -199,10 +202,13 @@ def _capture_tasks(names: list[str]) -> list[dict]:
     for full_name in names:
         task_path, task_name = _split_task_name(full_name)
         script = (
-            f"Get-ScheduledTask -TaskPath {_ps_quote(task_path)} -TaskName {_ps_quote(task_name)} "
-            "-ErrorAction SilentlyContinue | Select-Object TaskPath,TaskName,State"
+            "Get-ScheduledTask -ErrorAction Stop | Where-Object { "
+            f"$_.TaskPath -eq {_ps_quote(task_path)} -and $_.TaskName -eq {_ps_quote(task_name)} "
+            "} | Select-Object TaskPath,TaskName,State"
         )
-        ok, rows, _ = run_ps_json(script)
+        ok, rows, error = run_ps_json(script)
+        if not ok:
+            raise OSError(f"Не удалось сохранить состояние задачи {full_name}: {error}")
         if ok:
             for row in rows:
                 name = f"{row.get('TaskPath', task_path)}{row.get('TaskName', task_name)}"
@@ -216,9 +222,11 @@ def _capture_power(enabled: bool) -> dict:
     ok, stdout, stderr = run_cmd(["powercfg", "/getactivescheme"])
     if not ok:
         logger.error("Failed to read active power plan: %s", (stderr or stdout).strip())
-        return {}
+        raise OSError("Не удалось сохранить активный план питания")
     match = GUID_RE.search(stdout)
-    return {"active_guid": match.group(0)} if match else {}
+    if not match:
+        raise OSError("Windows не вернула идентификатор плана питания")
+    return {"active_guid": match.group(0)}
 
 
 def _capture_appx(names: list[str]) -> list[dict]:
@@ -244,7 +252,7 @@ def _capture_dns(enabled: bool) -> list[dict]:
     if not enabled:
         return []
     script = r"""
-Get-DnsClientServerAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | ForEach-Object {
+Get-DnsClientServerAddress -AddressFamily IPv4 -ErrorAction Stop | ForEach-Object {
     $adapter = Get-NetAdapter -InterfaceIndex $_.InterfaceIndex -ErrorAction SilentlyContinue
     $staticServers = $null
     if ($adapter) {
@@ -259,9 +267,9 @@ Get-DnsClientServerAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | F
     }
 }
 """
-    ok, rows, _ = run_ps_json(script)
-    if not ok:
-        return []
+    ok, rows, error = run_ps_json(script)
+    if not ok or not rows:
+        raise OSError(f"Не удалось сохранить DNS: {error or 'нет данных об адаптерах'}")
     result = []
     for row in rows:
         servers = row.get("ServerAddresses") or []
@@ -297,8 +305,7 @@ def _build_snapshot(effects: dict, label: str, kind: str, timestamp: str | None 
 
 def _write_snapshot(path: Path, snapshot: dict) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(snapshot, handle, indent=2, ensure_ascii=False)
+    write_report(path, snapshot)
     logger.info("Backup saved: %s", path)
     return str(path)
 

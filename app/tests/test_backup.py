@@ -10,6 +10,28 @@ from modules import backup
 TEST_KEY = r"Software\WinBoostTest"
 
 
+def test_failed_service_capture_aborts_snapshot(isolated_backup_dir, monkeypatch):
+    monkeypatch.setattr(backup, "run_ps_json", lambda *a, **kw: (False, [], "access denied"))
+    with pytest.raises(OSError, match="access denied"):
+        backup.capture({"services": ["ExampleService"]}, "test")
+    assert list(isolated_backup_dir.glob("*.json")) == []
+
+
+def test_failed_power_capture_aborts_snapshot(isolated_backup_dir, monkeypatch):
+    monkeypatch.setattr(backup, "run_cmd", lambda *a, **kw: (False, "", "error"))
+    with pytest.raises(OSError):
+        backup.capture({"power": True}, "test")
+    assert list(isolated_backup_dir.glob("*.json")) == []
+
+
+def test_unreadable_registry_value_is_not_misrepresented_as_absent(monkeypatch):
+    def denied(*args, **kwargs):
+        raise PermissionError("access denied")
+    monkeypatch.setattr(winreg, "OpenKeyEx", denied)
+    with pytest.raises(PermissionError):
+        backup.read_current_value(winreg.HKEY_CURRENT_USER, TEST_KEY, "Existing")
+
+
 def _clear_test_key():
     try:
         with winreg.OpenKeyEx(

@@ -1,360 +1,54 @@
-import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+import { ProductDemo, MotionScene, Reveal } from "@/components/experience";
 
-const downloadUrl = "https://github.com/imalisherbekenov/winboost/releases/latest";
-
-const steps = [
-  {
-    title: "Анализ системы",
-    text: "WinBoost читает конфигурацию, состояние служб и ключевых параметров, чтобы рекомендации учитывали именно ваш компьютер.",
-  },
-  {
-    title: "Выберите путь",
-    text: "Ответьте на понятные вопросы в режиме новичка или откройте полный каталог параметров в экспертном режиме.",
-  },
-  {
-    title: "Проверка изменений",
-    text: "До запуска вы увидите каждое действие, его эффект и возможный компромисс. Ненужные пункты можно исключить.",
-  },
-  {
-    title: "Применение за один запуск",
-    text: "Выбранные настройки применяются последовательно в одной сессии, а резервная копия создаётся автоматически.",
-  },
-  {
-    title: "Откат в любой момент",
-    text: "Если результат не подошёл, верните большинство системных твиков к сохранённому состоянию через WinBoost.",
-  },
+const modules = [
+  ["01", "Приватность", "Телеметрия, рекламный ID и фоновые разрешения."],
+  ["02", "Игровой режим", "Game DVR, план питания и параметры CS2."],
+  ["03", "Система и сеть", "Службы, DNS и настройки подключения."],
+  ["04", "Порядок в Windows", "Автозагрузка, временные файлы и приложения."],
 ];
-
-const analysisPoints = [
-  ["Узкое место", "Сопоставляет CPU, GPU, память и накопитель"],
-  ["Потенциал", "Показывает, есть ли смысл менять настройки"],
-  ["Состояние", "Проверяет службы и системные параметры"],
-  ["Приватность", "Находит активную телеметрию и сбор данных"],
-  ["Устойчивость", "Отмечает настройки, влияющие на стабильность"],
-];
-
-const reviewItems = [
-  {
-    level: "Высокое влияние",
-    tone: "danger",
-    title: "Отключить Windows Search",
-    text: "Индексатор перестанет работать в фоне, но поиск файлов в Проводнике может стать медленнее.",
-  },
-  {
-    level: "Высокое влияние",
-    tone: "danger",
-    title: "Отключить Xbox Game Bar",
-    text: "Освобождает фоновые ресурсы, но отключает оверлей и запись экрана по Win+G.",
-  },
-  {
-    level: "Требует решения",
-    tone: "warning",
-    title: "Отключить SysMain",
-    text: "На SSD эффект обычно невелик; на HDD предзагрузка приложений может оставаться полезной.",
-  },
-  {
-    level: "Требует решения",
-    tone: "warning",
-    title: "Удалить предустановленные приложения",
-    text: "Освобождает место, но удалённые приложения придётся устанавливать заново через Microsoft Store.",
-  },
-  {
-    level: "Обратимое действие",
-    tone: "safe",
-    title: "Включить производительный план питания",
-    text: "Меняет профиль энергопотребления. Исходный план сохраняется и доступен для восстановления.",
-  },
-];
-
 const faqs = [
-  {
-    question: "Что такое WinBoost?",
-    answer:
-      "Это локальное приложение для анализа и настройки Windows. Оно объединяет системные твики в понятный процесс: диагностика, выбор, проверка, применение и откат.",
-  },
-  {
-    question: "Увеличит ли WinBoost FPS в играх?",
-    answer:
-      "Иногда — за счёт меньшей фоновой нагрузки и более ровного времени кадра. Итог зависит от железа, драйверов, игры и исходного состояния Windows; приложение не обещает одинаковый прирост на всех системах.",
-  },
-  {
-    question: "Это безопасно?",
-    answer:
-      "WinBoost сначала показывает список изменений и создаёт резервную копию перед применением. При этом системные настройки всегда требуют осознанного выбора — внимательно читайте предупреждения в проверке.",
-  },
-  {
-    question: "Может ли WinBoost сломать Windows?",
-    answer:
-      "Большинство твиков обратимы, но некоторые действия по своей природе необратимы, например очистка файлов или удаление приложений. Такие пункты отмечаются до запуска; важные данные всё равно стоит резервировать отдельно.",
-  },
-  {
-    question: "Нужно ли знать технические термины?",
-    answer:
-      "Нет. Режим новичка задаёт практические вопросы о вашем сценарии. Экспертный режим остаётся доступен тем, кому нужен контроль над каждым параметром.",
-  },
-  {
-    question: "Можно ли отменить изменения?",
-    answer:
-      "Да, для большинства системных твиков. WinBoost сохраняет исходное состояние перед применением и позволяет выбрать резервную копию для восстановления.",
-  },
+  ["Насколько быстрее станет мой компьютер?", "Результат зависит от оборудования, фоновых процессов и исходных настроек Windows. WinBoost помогает убрать лишнюю нагрузку, но не обещает конкретный прирост FPS. Анализ показывает состояние системы, а не результат бенчмарка."],
+  ["Можно ли отменить изменения?", "Перед применением создаётся снимок затрагиваемых настроек: реестра, служб, задач, плана питания и DNS. Их можно восстановить из раздела «Снимки». Удаление файлов и приложений необратимо; такие действия не выбираются автоматически."],
+  ["Нужны ли права администратора?", "Для изменения системных настроек — да. Программа запросит права через стандартное окно Windows. Сам сайт показывает только демонстрационные данные и не получает доступ к вашему компьютеру."],
+  ["Программа работает без интернета?", "Анализ и большинство настроек выполняются локально. Отдельным действиям Windows может понадобиться сеть. WinBoost не требует регистрации; исходный код открыт под лицензией MIT."],
+  ["Где скачать новую версию?", "На этой странице доступна локальная сборка WinBoost 4.0 для Windows 10/11 x64. Это новая сборка из исходного кода, без цифровой подписи издателя. История публичных релизов доступна на GitHub."],
 ];
-
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "WinBoost",
-  applicationCategory: "UtilitiesApplication",
-  operatingSystem: "Windows 10, Windows 11",
-  description:
-    "Приложение для анализа, осознанной оптимизации и отката системных настроек Windows.",
-  downloadUrl,
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
-  },
-};
-
-function SectionIntro({ label, title, copy }: { label: string; title: string; copy: string }) {
-  return (
-    <header className="section-intro">
-      <span className="eyebrow">{label}</span>
-      <h2>{title}</h2>
-      <p>{copy}</p>
-    </header>
-  );
-}
-
-function TerminalHeader({ title }: { title: string }) {
-  return (
-    <div className="terminal-header">
-      <div className="terminal-controls" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-      </div>
-      <span>{title}</span>
-      <span aria-hidden="true">—</span>
-    </div>
-  );
-}
 
 export default function Home() {
-  return (
-    <>
-      <SiteHeader />
-      <main>
-        <section className="hero" aria-labelledby="hero-title">
-          <div className="page-shell hero-grid">
-            <div className="hero-copy">
-              <span className="eyebrow hero-kicker">Оптимизация без догадок</span>
-              <h1 id="hero-title">Настройте Windows под свою систему</h1>
-              <p>
-                WinBoost анализирует компьютер, объясняет каждое действие и сохраняет путь назад.
-                Вы решаете, что менять — приложение аккуратно выполняет выбранное.
-              </p>
-              <div className="hero-actions">
-                <a className="ghost-button" href={downloadUrl}>
-                  Скачать WinBoost <span aria-hidden="true">↗</span>
-                </a>
-                <a className="text-link" href="#how">
-                  Посмотреть процесс <span aria-hidden="true">↓</span>
-                </a>
-              </div>
-            </div>
-
-            <div className="hero-object" aria-hidden="true">
-              <div className="object-axis axis-x" />
-              <div className="object-axis axis-y" />
-              <div className="wire-cube">
-                <div className="cube-face cube-front" />
-                <div className="cube-face cube-back" />
-                <div className="cube-link link-a" />
-                <div className="cube-link link-b" />
-                <div className="cube-link link-c" />
-                <div className="cube-link link-d" />
-              </div>
-              <span className="object-label label-top">SYSTEM / READY</span>
-              <span className="object-label label-bottom">SAFE STATE / 01</span>
-            </div>
-          </div>
-
-          <div className="page-shell hero-stats" aria-label="Возможности WinBoost">
-            <div><strong>10</strong><span>модулей оптимизации</span></div>
-            <div><strong>55</strong><span>действий и твиков</span></div>
-            <div><strong>откат</strong><span>включён по умолчанию</span></div>
-          </div>
-        </section>
-
-        <section className="section" id="how">
-          <div className="page-shell">
-            <SectionIntro
-              label="01 / Процесс"
-              title="Пять шагов. Ни одного скрытого действия."
-              copy="Оптимизация начинается с фактов, проходит через ваш выбор и заканчивается сохранённым состоянием для восстановления."
-            />
-            <ol className="steps-list">
-              {steps.map((step, index) => (
-                <li key={step.title}>
-                  <span className="step-number">0{index + 1}</span>
-                  <h3>{step.title}</h3>
-                  <p>{step.text}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </section>
-
-        <section className="section" id="analysis">
-          <div className="page-shell">
-            <SectionIntro
-              label="02 / Диагностика"
-              title="Сначала — анализ системы"
-              copy="WinBoost собирает локальный снимок конфигурации и отмечает параметры, которые действительно заслуживают внимания."
-            />
-            <div className="feature-split">
-              <ol className="analysis-points">
-                {analysisPoints.map(([title, text], index) => (
-                  <li key={title}>
-                    <span>{index + 1}</span>
-                    <div><h3>{title}</h3><p>{text}</p></div>
-                  </li>
-                ))}
-              </ol>
-
-              <div className="terminal" aria-label="Пример анализа системы в WinBoost">
-                <TerminalHeader title="winboost / analyze" />
-                <div className="terminal-body">
-                  <p><span className="terminal-prompt">$</span> winboost --analyze <span className="syntax-id">--local</span></p>
-                  <p className="terminal-muted">Чтение конфигурации Windows...</p>
-                  <p><span className="status-success">OK</span> CPU <span className="syntax-id">AMD Ryzen 7 5800X</span></p>
-                  <p><span className="status-success">OK</span> GPU <span className="syntax-id">NVIDIA RTX 3070</span></p>
-                  <p><span className="status-success">OK</span> RAM <span className="syntax-id">32 GB DDR4</span></p>
-                  <p><span className="status-warning">WARN</span> DiagTrack активен</p>
-                  <p><span className="status-warning">WARN</span> SysMain использует 284 MB</p>
-                  <p><span className="status-error">CHECK</span> 7 действий требуют решения</p>
-                  <p className="terminal-rule">────────────────────────────</p>
-                  <p><span className="status-success">READY</span> найдено 18 рекомендаций</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="section" id="modes">
-          <div className="page-shell">
-            <SectionIntro
-              label="03 / Два режима"
-              title="Понятный выбор или полный контроль"
-              copy="Оба пути используют один анализ и одну проверку. Отличается только глубина ручной настройки."
-            />
-            <div className="modes-grid">
-              <article className="mode-card">
-                <div className="mode-meta"><span>Режим 01</span><span>Для новичка</span></div>
-                <h3>Ответьте на обычные вопросы</h3>
-                <p>Используете Bluetooth? Нужен Xbox Game Bar? Важнее анимации или отзывчивость? WinBoost переведёт ответы в настройки.</p>
-                <ul>
-                  <li>Без системного жаргона</li>
-                  <li>Рекомендации по сценарию</li>
-                  <li>Все компромиссы видны до запуска</li>
-                </ul>
-              </article>
-              <article className="mode-card">
-                <div className="mode-meta"><span>Режим 02</span><span>Для эксперта</span></div>
-                <h3>Управляйте каждым параметром</h3>
-                <p>Откройте каталог модулей, изучите описание и отдельно включите только те действия, которые нужны вашей конфигурации.</p>
-                <ul>
-                  <li>Полный список действий</li>
-                  <li>Группировка по модулям</li>
-                  <li>Ручное включение и исключение</li>
-                </ul>
-              </article>
-            </div>
-          </div>
-        </section>
-
-        <section className="section" id="review">
-          <div className="page-shell">
-            <SectionIntro
-              label="04 / Проверка"
-              title="Вы видите последствия до применения"
-              copy="Каждое действие раскрывает не только пользу, но и то, что может измениться в привычной работе Windows."
-            />
-            <div className="review-list">
-              {reviewItems.map((item) => (
-                <article key={item.title} className="review-row">
-                  <span className={`risk-dot ${item.tone}`} aria-hidden="true" />
-                  <div className="review-level">{item.level}</div>
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="section" id="backup">
-          <div className="page-shell">
-            <SectionIntro
-              label="05 / Бэкапы"
-              title="Исходное состояние остаётся рядом"
-              copy="Перед применением WinBoost фиксирует настройки реестра, служб и питания. Резервные копии остаются локально на вашем компьютере."
-            />
-            <div className="backup-split">
-              <div className="backup-copy">
-                <div><span>01</span><h3>Автоматически</h3><p>Бэкап создаётся до того, как меняется первый параметр.</p></div>
-                <div><span>02</span><h3>Локально</h3><p>Файлы восстановления не отправляются на внешние серверы.</p></div>
-                <div><span>03</span><h3>Выборочно</h3><p>Можно открыть сохранённое состояние и восстановить поддерживаемые настройки.</p></div>
-              </div>
-              <div className="terminal" aria-label="Пример создания резервной копии в WinBoost">
-                <TerminalHeader title="winboost / backup" />
-                <div className="terminal-body">
-                  <p><span className="terminal-prompt">$</span> winboost --backup <span className="syntax-id">--before-apply</span></p>
-                  <p><span className="status-success">SAVED</span> реестр</p>
-                  <p><span className="status-success">SAVED</span> состояние служб</p>
-                  <p><span className="status-success">SAVED</span> схема электропитания</p>
-                  <p><span className="status-success">SAVED</span> системные параметры</p>
-                  <p className="terminal-rule">────────────────────────────</p>
-                  <p>Путь: <span className="syntax-id">C:\WinBoost\Backups\state-01.wbb</span></p>
-                  <p><span className="status-success">READY</span> можно применять 18 действий</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="section faq-section" id="faq">
-          <div className="page-shell faq-shell">
-            <SectionIntro
-              label="06 / FAQ"
-              title="Коротко о важном"
-              copy="Что делает приложение, чего от него ожидать и где сохраняется контроль."
-            />
-            <div className="faq-list">
-              {faqs.map((faq, index) => (
-                <details key={faq.question}>
-                  <summary><span className="faq-number">0{index + 1}</span><span>{faq.question}</span><span className="faq-toggle" aria-hidden="true" /></summary>
-                  <p>{faq.answer}</p>
-                </details>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="cta-section" aria-labelledby="cta-title">
-          <div className="page-shell cta-shell">
-            <span className="eyebrow">Начните с анализа</span>
-            <h2 id="cta-title">Настройте Windows с пониманием каждого шага.</h2>
-            <p>Бесплатно · без регистрации · для Windows 10 и 11</p>
-            <a className="ghost-button" href={downloadUrl}>
-              Скачать последнюю версию <span aria-hidden="true">↗</span>
-            </a>
-          </div>
-        </section>
-      </main>
-      <SiteFooter />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-    </>
-  );
+  return <>
+    <SiteHeader />
+    <main id="main">
+      <section className="hero shell">
+        <div className="hero-copy">
+          <div className="release-label"><span className="status-dot" /> WINBOOST 4.0 <span className="release-divider" /> НОВАЯ ВЕРСИЯ</div>
+          <h1>Ваш Windows.<br />В лучшей <span>форме.</span></h1>
+          <p className="hero-description">Меньше фонового шума. Больше пространства для важного. Настройте систему под себя — с пониманием каждого изменения.</p>
+          <div className="hero-actions"><a className="primary-button" href="#download">Получить WinBoost <span aria-hidden="true">↗</span></a><a className="text-button" href="#demo"><span className="play-icon" aria-hidden="true">▷</span> Посмотреть в действии</a></div>
+          <div className="hero-platform"><svg viewBox="0 0 20 22" aria-hidden="true"><path d="M1 3l8-1v8H1zm10-1l8-1v9h-8zM1 12h8v7l-8-1zm10 0h8v9l-8-1z" fill="currentColor" /></svg> Windows 10 / 11 <span>·</span> Бесплатно <span>·</span> Open source</div>
+        </div>
+        <MotionScene />
+        <div className="hero-bottom"><span>СИСТЕМА ПОД ВАШИМ КОНТРОЛЕМ</span><a href="#demo">Прокрутите, чтобы исследовать <span aria-hidden="true">↓</span></a></div>
+      </section>
+      <section className="principles shell" aria-label="Принципы программы">{[["↗", "Точная настройка", "Под ваш сценарий"], ["◎", "Всё прозрачно", "Проверка перед применением"], ["↶", "Есть путь назад", "Снимок перед запуском"], ["⌘", "Полностью ваш", "Без подписок и аккаунта"]].map(([icon,title,copy]) => <div key={title}><span className="principle-icon" aria-hidden="true">{icon}</span><span>{title}<small>{copy}</small></span></div>)}</section>
+      <section id="demo" className="section shell">
+        <Reveal><div className="section-heading"><div><span className="eyebrow">01 / ЦЕНТР УПРАВЛЕНИЯ</span><h2>Сложное внутри.<br /><span>Понятное снаружи.</span></h2></div><p>Одна точка входа для анализа, настройки и восстановления. Попробуйте интерфейс прямо здесь.</p></div></Reveal>
+        <Reveal><ProductDemo /></Reveal>
+        <div className="demo-caption"><span><span className="status-dot" /> ИНТЕРАКТИВНОЕ ПРЕВЬЮ</span><p>Демонстрационные данные. Настройки вашего компьютера не меняются.</p></div>
+      </section>
+      <section id="features" className="section shell features-section">
+        <Reveal><div className="section-heading"><div><span className="eyebrow">02 / ВОЗМОЖНОСТИ</span><h2>Уберите лишнее.<br /><span>Оставьте своё.</span></h2></div><p>10 модулей настройки — от приватности до игровых параметров. Вы решаете, что действительно нужно.</p></div></Reveal>
+        <div className="feature-layout"><Reveal className="feature-visual"><div className="feature-visual-top"><span className="eyebrow">МЕНЬШЕ ФОНОВОГО ШУМА</span><span className="status-dot" /></div><div className="signal-art" aria-hidden="true">{Array.from({length: 35}, (_, i) => <i key={i} style={{"--i": i, "--bar": `${18 + Math.sin(i * .65) ** 2 * 80}%`} as React.CSSProperties} />)}</div><div className="feature-visual-bottom"><h3>Ресурсы —<br />вашим задачам.</h3><p>Контролируйте фоновые процессы,<br />а не подстраивайтесь под них.</p></div></Reveal><div className="module-list">{modules.map(([n,title,desc]) => <Reveal key={n}><a href="#demo" className="module-row"><span className="module-number">{n}</span><div><h3>{title}</h3><p>{desc}</p></div><span className="module-arrow" aria-hidden="true">↗</span></a></Reveal>)}</div></div>
+      </section>
+      <section id="how" className="workflow-section"><div className="shell section"><Reveal><div className="section-heading"><div><span className="eyebrow">03 / ПОНЯТНЫЙ ПРОЦЕСС</span><h2>Три шага.<br /><span>Никакой магии.</span></h2></div><p>Вместо одной загадочной кнопки — последовательный процесс, в котором решение всегда за вами.</p></div></Reveal><div className="workflow-grid">{[
+        ["01", "Изучите систему", "Глубокий анализ оборудования, служб, автозагрузки и параметров Windows.", "CPU / RAM / DISK"],
+        ["02", "Соберите свой набор", "Готовые сценарии или точный выбор. У каждого действия — описание и уровень риска.", "ВЫБОР → ПРОВЕРКА"],
+        ["03", "Примените с контролем", "Сначала снимок, затем изменения. Ход выполнения, остановка и результат — на одном экране.", "СНИМОК → ПРИМЕНЕНИЕ"],
+      ].map(([n,title,desc,label]) => <Reveal key={n} className="workflow-step"><span className="step-number">{n}<span aria-hidden="true">↗</span></span><h3>{title}</h3><p>{desc}</p><span className="step-label">{label}</span></Reveal>)}</div></div></section>
+      <section id="safety" className="section shell"><Reveal className="safety-layout"><div className="snapshot-art" aria-hidden="true"><div className="snapshot-card back"><span>ПРЕДЫДУЩЕЕ СОСТОЯНИЕ</span><i /><i /><i /></div><div className="snapshot-card front"><div className="snapshot-symbol">↶</div><span>СНИМОК СИСТЕМЫ</span><strong>Можно вернуться.</strong><div className="snapshot-line"><span className="status-dot" /> Настройки сохранены</div></div></div><div className="safety-copy"><span className="eyebrow">КОНТРОЛЬ, А НЕ СЛЕПАЯ ВЕРА</span><h2>План Б.<br /><span>Уже в комплекте.</span></h2><p>Перед изменениями WinBoost сохраняет затрагиваемые настройки. Если что-то не подошло, восстановите их из снимка.</p><ul><li>Первичный снимок хранится отдельно</li><li>Риски видны до запуска</li><li>Необратимые действия выбираете только вы</li></ul><p className="fine-print">Снимок настроек не заменяет резервную копию файлов. Удалённые файлы и приложения автоматически не восстанавливаются.</p></div></Reveal></section>
+      <section id="faq" className="section shell faq-section"><Reveal><div><span className="eyebrow">ЕЩЁ ПАРА ДЕТАЛЕЙ</span><h2>Хорошие<br /><span>вопросы.</span></h2><a className="text-button" href="https://github.com/imalisherbekenov/winboost/issues">Обсудить на GitHub <span aria-hidden="true">↗</span></a></div></Reveal><div className="faq-list">{faqs.map(([q,a],i) => <details key={q}><summary><span className="faq-index">0{i+1}</span>{q}<span className="faq-plus" aria-hidden="true">+</span></summary><p>{a}</p></details>)}</div></section>
+      <section id="download" className="download-section shell"><Reveal><div className="download-panel"><div><span className="eyebrow">WINBOOST 4.0 / WINDOWS X64</span><h2>Компьютер ваш.<br /><span>Правила тоже.</span></h2><p>Начните с анализа. Измените только то, что нужно.</p><a className="primary-button" href="/downloads/WinBoost-4.0.exe" download>Скачать WinBoost 4.0 <span aria-hidden="true">↓</span></a><p className="download-note">Windows 10 / 11 · Бесплатно · Локальная сборка без подписи</p></div><div className="download-mark" aria-hidden="true">W<span>↗</span></div></div></Reveal></section>
+    </main><SiteFooter />
+  </>;
 }

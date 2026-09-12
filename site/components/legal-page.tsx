@@ -14,7 +14,7 @@ export function LegalPage({ eyebrow, title, subtitle, children }: LegalPageProps
   return (
     <>
       <SiteHeader />
-      <main className="legal-main">
+      <main id="main" className="legal-main">
         <div className="legal-shell">
           <Link className="back-link" href="/">
             <span aria-hidden="true">←</span> На главную

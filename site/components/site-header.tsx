@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-const downloadUrl = "https://github.com/imalisherbekenov/winboost/releases/latest";
+const downloadUrl = "/#download";
 
 const navItems = [
+  { href: "/#features", label: "Возможности" },
   { href: "/#how", label: "Как это работает" },
-  { href: "/#analysis", label: "Анализ" },
-  { href: "/#modes", label: "Режимы" },
-  { href: "/#review", label: "Проверка" },
-  { href: "/#backup", label: "Бэкапы" },
+  { href: "/#safety", label: "Контроль" },
   { href: "/#faq", label: "FAQ" },
 ];
 
@@ -87,7 +85,7 @@ export function SiteHeader() {
         </nav>
 
         <a className="ghost-button nav-download" href={downloadUrl}>
-          Скачать
+          Скачать 4.0
           <span aria-hidden="true">↗</span>
         </a>
 
