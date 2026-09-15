@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from modules import ALL_MODULES
 from modules.operations import PROFILES, execute_plan, matches_action, profile_actions, write_report
 from icons import draw_glyph
+from windows_chrome import apply_dark_titlebar, set_app_identity
 from modules.analyzer import analyze_system, format_analysis
 from modules.backup import capture, ensure_baseline, list_backups, merge_effects
 from modules.backup import restore as restore_backup
@@ -443,8 +444,12 @@ class WinBoostApp:
                                  callback=self._export_analysis):
                 dpg.add_file_extension(".json")
 
+            set_app_identity()
+            window_icon = str(_resource_path("assets", "icons", "WinBoost.ico"))
             dpg.create_viewport(
                 title=APP_TITLE,
+                small_icon=window_icon,
+                large_icon=window_icon,
                 width=WINDOW_WIDTH,
                 height=WINDOW_HEIGHT,
                 min_width=1180,
@@ -454,6 +459,7 @@ class WinBoostApp:
             dpg.setup_dearpygui()
             dpg.set_primary_window("main_win", True)
             dpg.show_viewport()
+            apply_dark_titlebar(APP_TITLE)
             if capture_page == "review":
                 self._open_review(self._all_actions[:6], "capture", "home")
             elif capture_page == "analysis":

@@ -11,6 +11,8 @@ try {
     $builtFile = Get-Item "..\dist\WinBoost-$appVersion.exe"
     $downloadFolder = New-Item -ItemType Directory -Force '..\site\public\downloads'
     Copy-Item -LiteralPath $builtFile.FullName -Destination (Join-Path $downloadFolder.FullName $builtFile.Name) -Force
+    $checksum = (Get-FileHash -Algorithm SHA256 -LiteralPath $builtFile.FullName).Hash.ToLowerInvariant()
+    "$checksum  $($builtFile.Name)" | Set-Content -LiteralPath (Join-Path $downloadFolder.FullName "SHA256.txt") -Encoding ascii
     Get-FileHash -Algorithm SHA256 -LiteralPath $builtFile.FullName | Format-List
     Write-Host "Built $($builtFile.FullName)"
 } finally {
